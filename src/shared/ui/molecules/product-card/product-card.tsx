@@ -29,7 +29,10 @@ export type ProductCardProps = Omit<ComponentProps<"article">, "children"> & {
   /** Brand name as plain descriptive text (never a logo). */
   brand: string;
   name: string;
-  /** Short spec values such as "65 W", "GaN", "USB-C". Only the first 3 show. */
+  /**
+   * Short spec values such as "65 W", "GaN", "USB-C". Duplicates are dropped,
+   * then only the first 3 show.
+   */
   specs?: readonly string[];
   /** In céntimos (integer minor units), see `Price`. */
   price: { amount: number; compareAt?: number };
@@ -56,7 +59,8 @@ export function ProductCard({
   className,
   ...props
 }: ProductCardProps) {
-  const shownSpecs = specs.slice(0, MAX_SPECS);
+  // A repeated tag carries no information, and the spec is the React key.
+  const shownSpecs = [...new Set(specs)].slice(0, MAX_SPECS);
 
   return (
     <article

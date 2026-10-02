@@ -1,5 +1,5 @@
 import { getDefaultNormalizer, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { expectNoAxeViolations } from "@/test/a11y";
 import placeholder from "./__fixtures__/placeholder.svg";
 import { ProductCard, type ProductCardProps } from "./product-card";
@@ -26,6 +26,10 @@ const CHARGER: ProductCardProps = {
 };
 
 describe("ProductCard", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("links the whole card through one link named by the product name", () => {
     render(<ProductCard {...CHARGER} />);
 
@@ -114,6 +118,28 @@ describe("ProductCard", () => {
       "USB-C",
     ]);
     expect(screen.getByText("GaN")).toHaveClass("font-mono");
+  });
+
+  it("drops duplicate specs before taking the first three", () => {
+    // React logs duplicate keys as errors; there must be none.
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    render(
+      <ProductCard
+        {...CHARGER}
+        specs={["USB-C", "65 W", "USB-C", "GaN", "PD 3.0"]}
+      />,
+    );
+
+    const specs = screen.getAllByRole("listitem");
+    expect(specs.map((item) => item.textContent)).toEqual([
+      "USB-C",
+      "65 W",
+      "GaN",
+    ]);
+    expect(consoleError).not.toHaveBeenCalled();
   });
 
   it("renders no spec list without specs", () => {
