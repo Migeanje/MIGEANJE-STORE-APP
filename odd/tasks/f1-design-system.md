@@ -36,7 +36,8 @@ The repository is empty. The F1 identity decisions are closed (Engram, project `
 | T5a | Atom infrastructure + first atoms: shadcn setup (primitives in `src/shared/ui/primitives`, `cn` util), automated axe checks in Vitest/CI (closes T3 advisory R3-002), Button (pill, "encendido" glow), AvailabilityIndicator (LED) — tests + stories | Delegated (writer) | 2+ non-trivial files | Done — `6425e22` (owner commit, partial) + `126e45d` |
 | T5b | Remaining atoms: Heading/Text, Price (PEN, minor units), Input/Label/FieldError, Tag/Chip — tests + stories + axe; Button `aria-busy` override fix (T5a review R3-001) | Delegated (writer) | 2+ non-trivial files | Done — `69d13b3` (fix) + `af6ab2e` (atoms) |
 | T6 | Molecules: ProductCard, SpecList/SpecRow, FormField, QuantityStepper, SearchBar — tests + stories; first, T5b review suggestions (FieldError empty nodes, Heading level guard, ICU dependency guard for `formatPEN`) | Delegated (writer) | 2+ non-trivial files | Done — `98b57b9`/`de40bff`/`594d2bf` (item 0, owner commits) + `726bc20`, `9986d22`, `a020339`, `2aa7a48`, `22b01f0`, `91d8b02` |
-| T7 | ADR in `docs/adr/` for the visual identity decisions (#37–#44), per #21 10.3/10.6 | Inline | One passive document | Pending |
+| T6.1 | Molecules hardening from T6 review: QuantityStepper RangeError for out-of-domain value/defaultValue (R3-001), SearchBar controlled mode (R3-002), ProductCard spec dedupe (R3-003) | Delegated (writer) | 3 molecules + CLAUDE.md | Done — `d634c88`, `bd7304f`, `7ecafba` |
+| T7 | ADR in `docs/adr/` for the visual identity decisions (#37–#44), per #21 10.3/10.6 | Inline | One passive document | Done — `09d3289` (ADR 0001 visual identity, ADR 0002 UI component layering) |
 
 ## Acceptance criteria
 
@@ -96,7 +97,14 @@ The repository is empty. The F1 identity decisions are closed (Engram, project `
 - 2026-10-02: T6 done. Item 0 (isEmptyNode helper, FieldError/Heading guards, ICU guard test, `@testing-library/user-event` ^14.6.7) was committed and pushed by the owner mid-writer as `98b57b9`, `de40bff`, `594d2bf` with a leftover message from another project (owner confirmed; content correct; history not rewritten — squash merge cleans it). Follow-up lint fix `726bc20`. Molecules: FormField `9986d22` (render-prop API), SpecList `a020339`, QuantityStepper `2aa7a48`, SearchBar `22b01f0`, ProductCard `91d8b02` (+ CLAUDE.md molecule conventions).
   - RED → GREEN per item (module-missing RED; 10 item-0 failures). Writer verification: install, lint (98 files), typecheck, test (411), build, build-storybook ok. Parent spot check: `pnpm test` 411 passed; `pnpm lint` ok.
   - Open: no headless axe pass on molecule stories at 375/1280px; QuantityStepper has no live-region announcement on ± clicks.
+  - Review: owner granted; 1-lens reliability review of `af6ab2e..555d055` (lineage `review-0fd11a919ff8dbf1`) approved; acknowledged, authority burned. Reviewed boundary: `555d055`. Advisories R3-001..R3-003 → T6.1.
+- 2026-10-02: T6.1 done — `d634c88` (QuantityStepper RangeError contract), `bd7304f` (SearchBar controlled mode), `7ecafba` (ProductCard spec dedupe). RED: 15 failing tests before fixes; GREEN: 426 tests. Writer verification: lint, typecheck, test, build-storybook ok. Parent spot check: `pnpm test` 426 passed; `pnpm lint` ok.
+- 2026-10-02: T7 done — `09d3289` ADR 0001 (visual identity "night greenhouse") and ADR 0002 (UI component layering). Passive docs; structural readback (3 `##` sections each).
+
+## Status
+
+All tasks T1–T7 done. Pending: native review of `555d055..HEAD` (T6.1 + ADRs + this tracker update), then the owner pushes. Follow-ups carried to `f1-mockups`: pin GitHub Actions to SHAs; `.env.example` gitignore exception for `DATA_SOURCE`; headless axe pass on Storybook stories; QuantityStepper live-region announcement; `toPixels` exponent form (docs only).
 
 ## Next step
 
-Native review of `af6ab2e..HEAD` (covers the owner's item-0 commits too), then T7 (ADR). Avoid standalone docs commits while the upstream base lags: commit tracker updates together with the next work unit.
+Feature `f1-mockups`: catalog domain + mock adapter with 10–20 real UGREEN/Anker fixtures (real specs), pages for the MVP sitemap and the 5 key flows (#20, with flow 3 corrected by #33). Next review base: `555d055`.
