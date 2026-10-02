@@ -32,8 +32,9 @@ The repository is empty. The F1 identity decisions are closed (Engram, project `
 | T2.1 | Token hardening from T2 review advisories: self-hosted `geist` fonts (R3-001), float-safe asserts (R3-002), 3-digit hex green guard (R3-003), radii test (R3-004) | Delegated (writer) | 3+ files incl. dependency change | Done — `e59e884` |
 | T3 | Storybook (latest, Next.js framework) + a11y addon + token docs (Colors, Typography, Spacing, Radii, Motion) | Delegated (writer) | 2+ non-trivial files | Done — `2b0aa2e` |
 | T3.1 | Foundations docs hardening from T3 review advisories: shared contrast-pair list for test + docs (R2-001), radii demo reads tokens (R2-002), strict `toHexColor` parsing + tests (R3-001) | Delegated (writer) | 3+ files | Pending |
-| T4 | Owner visual review of tokens in Storybook (neutral scale, type scale, spacing) | Inline | Decision only, no writes | In progress |
-| T5 | Atoms: Button (pill, "encendido" glow), AvailabilityIndicator (LED), Heading/Text, Price (PEN), Input/Label/FieldError, Tag/Chip — tests + stories + automated axe checks in CI (closes T3 advisory R3-002) | Delegated (writer) | 2+ non-trivial files | Pending |
+| T4 | Owner visual review of tokens in Storybook (neutral scale, type scale, spacing) | Inline | Decision only, no writes | Done — owner approved the whole style (2026-10-02) |
+| T5a | Atom infrastructure + first atoms: shadcn setup (primitives in `src/shared/ui/primitives`, `cn` util), automated axe checks in Vitest/CI (closes T3 advisory R3-002), Button (pill, "encendido" glow), AvailabilityIndicator (LED) — tests + stories | Delegated (writer) | 2+ non-trivial files | Pending |
+| T5b | Remaining atoms: Heading/Text, Price (PEN, minor units), Input/Label/FieldError, Tag/Chip — tests + stories + axe | Delegated (writer) | 2+ non-trivial files | Pending |
 | T6 | Molecules: ProductCard, SpecList/SpecRow, FormField, QuantityStepper, SearchBar — tests + stories | Delegated (writer) | 2+ non-trivial files | Pending |
 | T7 | ADR in `docs/adr/` for the visual identity decisions (#37–#44), per #21 10.3/10.6 | Inline | One passive document | Pending |
 
@@ -78,6 +79,8 @@ The repository is empty. The F1 identity decisions are closed (Engram, project `
   - Risk tier: high (`shell_source` ci.yml). Owner granted; 4-lens native review (lineage `review-b95b070244bc90bb`) approved; acknowledged, authority burned. Reviewed boundary: `2b0aa2e`.
   - Advisories → T3.1: R2-001, R2-002, R3-001. R3-002 (a11y only checked by hand; CI does not run axe) → T5 adds automated axe tests per component. Minor suggestions (R2-003, R2-004, R2-005, R3-003, R3-004) recorded, not scheduled.
 
+- 2026-10-02: T4 done — owner reviewed Foundations in Storybook and approved the whole style as implemented (Engram `design/foundations-approval`). T5 split into T5a/T5b as reviewable work units (~1,000+ lines forecast for all atoms).
+
 ## Next step
 
-Owner visual review in Storybook (T4, `pnpm storybook`). Then T3.1, T5. Next review base: `2b0aa2e`.
+T3.1 (foundations docs hardening), then T5a. Next review base: `2b0aa2e`.
