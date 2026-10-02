@@ -15,12 +15,19 @@ import { Label } from "@/shared/ui/atoms/label";
 
 export type SearchBarProps = Omit<
   ComponentProps<"form">,
-  "children" | "role" | "onSubmit"
+  "children" | "role" | "onSubmit" | "defaultValue"
 > & {
   /** Called with the trimmed query on submit; never with an empty query. */
   onSearch: (query: string) => void;
-  /** Initial query, e.g. the current `?q=` on a results page. */
+  /**
+   * Controlled query. Pair it with `onValueChange`. Use it where the bar stays
+   * mounted across navigations (the header), so it follows the current `?q=`.
+   */
+  value?: string;
+  /** Initial query when uncontrolled. Read once on mount. */
   defaultValue?: string;
+  /** Called with the raw (untrimmed) query on every edit, including clear. */
+  onValueChange?: (value: string) => void;
   /** Visually hidden label. Defaults to "Buscar productos". */
   label?: string;
   placeholder?: string;
@@ -30,10 +37,13 @@ export type SearchBarProps = Omit<
  * Product search form (`role="search"`): a labelled `type="search"` field, a
  * clear button while there is text (focus returns to the field) and a submit
  * button. Calls `onSearch` with the trimmed query; navigation is the caller's.
+ * Controlled (`value` + `onValueChange`) or uncontrolled (`defaultValue`).
  */
 export function SearchBar({
   onSearch,
+  value,
   defaultValue = "",
+  onValueChange,
   label = "Buscar productos",
   placeholder = "Busca cargadores, cables, power banks…",
   className,
@@ -41,7 +51,14 @@ export function SearchBar({
 }: SearchBarProps) {
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [query, setQuery] = useState(defaultValue);
+  const [uncontrolledQuery, setUncontrolledQuery] = useState(defaultValue);
+  const isControlled = value !== undefined;
+  const query = isControlled ? value : uncontrolledQuery;
+
+  function setQuery(next: string) {
+    if (!isControlled) setUncontrolledQuery(next);
+    onValueChange?.(next);
+  }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

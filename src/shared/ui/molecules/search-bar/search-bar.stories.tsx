@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { useState } from "react";
 import { fn } from "storybook/test";
-import { SearchBar } from "./search-bar";
+import { SearchBar, type SearchBarProps } from "./search-bar";
 
 const meta = {
   title: "Molecules/SearchBar",
@@ -8,11 +9,13 @@ const meta = {
   tags: ["autodocs"],
   args: {
     onSearch: fn(),
+    onValueChange: fn(),
   },
   argTypes: {
     defaultValue: { control: "text" },
     placeholder: { control: "text" },
     label: { control: "text" },
+    value: { control: false },
   },
   decorators: [
     (Story) => (
@@ -25,7 +28,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'Product search: `<form role="search">` with a visually hidden label ("Buscar productos"), a `type="search"` field, a clear button while there is text ("Borrar búsqueda", returns focus to the field) and a 44px submit button ("Buscar", decorative icon). Calls `onSearch` with the trimmed query and never with an empty one; routing belongs to the caller.',
+          'Product search: `<form role="search">` with a visually hidden label ("Buscar productos"), a `type="search"` field, a clear button while there is text ("Borrar búsqueda", returns focus to the field) and a 44px submit button ("Buscar", decorative icon). Calls `onSearch` with the trimmed query and never with an empty one; routing belongs to the caller. Controlled (`value` + `onValueChange`, for a header that stays mounted and follows `?q=`) or uncontrolled (`defaultValue`).',
       },
     },
   },
@@ -49,4 +52,24 @@ export const InHeader: Story = {
       <SearchBar {...args} className="sm:flex-1" />
     </div>
   ),
+};
+
+function ControlledDemo({ onSearch, onValueChange }: SearchBarProps) {
+  // Stands in for the current `?q=` the header reads from the URL.
+  const [query, setQuery] = useState("cable USB-C");
+  return (
+    <SearchBar
+      value={query}
+      onValueChange={(next) => {
+        setQuery(next);
+        onValueChange?.(next);
+      }}
+      onSearch={onSearch}
+    />
+  );
+}
+
+export const Controlled: Story = {
+  name: "Controlled (follows ?q=)",
+  render: (args) => <ControlledDemo {...args} />,
 };

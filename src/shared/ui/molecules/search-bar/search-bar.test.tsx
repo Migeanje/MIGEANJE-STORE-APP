@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { expectNoAxeViolations } from "@/test/a11y";
 import { SearchBar } from "./search-bar";
@@ -105,6 +106,77 @@ describe("SearchBar", () => {
     ).toBeNull();
     // Clearing is not a search.
     expect(onSearch).not.toHaveBeenCalled();
+  });
+
+  it("reports every change with onValueChange when uncontrolled", async () => {
+    const user = userEvent.setup();
+    const onValueChange = vi.fn();
+    render(<SearchBar onSearch={() => {}} onValueChange={onValueChange} />);
+
+    await user.type(getSearchbox(), "ab");
+
+    expect(getSearchbox()).toHaveValue("ab");
+    expect(onValueChange.mock.calls).toEqual([["a"], ["ab"]]);
+  });
+
+  it("follows the value prop when controlled", () => {
+    const { rerender } = render(
+      <SearchBar onSearch={() => {}} value="cable" onValueChange={() => {}} />,
+    );
+    expect(getSearchbox()).toHaveValue("cable");
+
+    // Client navigation changed ?q= while the header stayed mounted.
+    rerender(
+      <SearchBar
+        onSearch={() => {}}
+        value="cargador GaN"
+        onValueChange={() => {}}
+      />,
+    );
+
+    expect(getSearchbox()).toHaveValue("cargador GaN");
+  });
+
+  it("asks the parent to change the value when typing or clearing in controlled mode", async () => {
+    const user = userEvent.setup();
+    const onValueChange = vi.fn();
+    render(
+      <SearchBar
+        onSearch={() => {}}
+        value="cable"
+        onValueChange={onValueChange}
+      />,
+    );
+    const input = getSearchbox();
+
+    await user.type(input, "s");
+    expect(onValueChange).toHaveBeenLastCalledWith("cables");
+    // The parent owns the state: no change until it passes the new value.
+    expect(input).toHaveValue("cable");
+
+    await user.click(screen.getByRole("button", { name: "Borrar búsqueda" }));
+    expect(onValueChange).toHaveBeenLastCalledWith("");
+    expect(input).toHaveFocus();
+  });
+
+  it("works with a parent that owns the query", async () => {
+    const user = userEvent.setup();
+    const onSearch = vi.fn();
+    function Header() {
+      const [query, setQuery] = useState("cable");
+      return (
+        <SearchBar value={query} onValueChange={setQuery} onSearch={onSearch} />
+      );
+    }
+    render(<Header />);
+    const input = getSearchbox();
+
+    await user.click(screen.getByRole("button", { name: "Borrar búsqueda" }));
+    expect(input).toHaveValue("");
+
+    await user.type(input, "power bank{Enter}");
+    expect(input).toHaveValue("power bank");
+    expect(onSearch).toHaveBeenCalledWith("power bank");
   });
 
   it("uses a 44px submit button and a clear button above the 24px minimum", async () => {
