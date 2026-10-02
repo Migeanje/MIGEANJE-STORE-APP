@@ -43,6 +43,9 @@ function parseCustomProperties(block: string): Map<string, string> {
 const rootBlock = extractBlock(css, /:root\s*(?=\{)/);
 const tokens = parseCustomProperties(rootBlock);
 
+// Static `@theme` block (not `@theme inline`): radii, type scale, easing.
+const themeTokens = parseCustomProperties(extractBlock(css, /@theme\s*(?=\{)/));
+
 /** Follows `var(--x)` aliases until a literal value is reached. */
 function resolveToken(name: string, seen: string[] = []): string {
   if (seen.includes(name)) {
@@ -90,6 +93,16 @@ const SHADCN_TOKENS = [
 ] as const;
 
 const EXTRA_TOKENS = ["--surface-raised", "--led-off", "--glow"] as const;
+
+// `full` is 50% (circles for square elements: LED dot, avatars); buttons and
+// any non-square pill shape use `pill`.
+const APPROVED_RADII = {
+  "--radius-sm": "0.375rem",
+  "--radius-md": "0.75rem",
+  "--radius-lg": "1.25rem",
+  "--radius-pill": "9999px",
+  "--radius-full": "50%",
+};
 
 // Every surface a piece of text or a control may sit on.
 const SURFACES = [
@@ -189,7 +202,8 @@ describe("design tokens", () => {
   });
 
   it("contains no green-hued token (green lives only in photography)", () => {
-    const hexValues = rootBlock.match(/#[0-9a-f]{6}\b/gi) ?? [];
+    // Same 3- or 6-digit forms parseHex accepts, so shorthand cannot slip by.
+    const hexValues = rootBlock.match(/#(?:[0-9a-f]{3}|[0-9a-f]{6})\b/gi) ?? [];
     const greens = hexValues.filter((hex) => {
       const { hue, saturation } = hueAndSaturation(hex);
       return hue >= 80 && hue <= 170 && saturation > 0.2;
@@ -208,6 +222,14 @@ describe("design tokens", () => {
   it("resets Tailwind's default palette and radii", () => {
     expect(css).toMatch(/--color-\*:\s*initial;/);
     expect(css).toMatch(/--radius-\*:\s*initial;/);
+  });
+
+  it("defines exactly the approved radii", () => {
+    const radii = Object.fromEntries(
+      [...themeTokens].filter(([name]) => name.startsWith("--radius-")),
+    );
+
+    expect(radii).toEqual(APPROVED_RADII);
   });
 
   it("makes motion instant and disables smooth scroll on reduced motion", () => {

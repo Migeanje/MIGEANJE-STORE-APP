@@ -22,8 +22,8 @@ describe("parseHex", () => {
 
 describe("relativeLuminance", () => {
   it("is 0 for black and 1 for white", () => {
-    expect(relativeLuminance("#000000")).toBe(0);
-    expect(relativeLuminance("#ffffff")).toBe(1);
+    expect(relativeLuminance("#000000")).toBeCloseTo(0, 10);
+    expect(relativeLuminance("#ffffff")).toBeCloseTo(1, 10);
   });
 
   it("weights green more than red and red more than blue", () => {
@@ -39,11 +39,11 @@ describe("relativeLuminance", () => {
 
 describe("contrastRatio", () => {
   it("is 21 for black on white", () => {
-    expect(contrastRatio("#000000", "#ffffff")).toBe(21);
+    expect(contrastRatio("#000000", "#ffffff")).toBeCloseTo(21, 10);
   });
 
   it("is 1 for identical colors", () => {
-    expect(contrastRatio("#1c1a17", "#1C1A17")).toBe(1);
+    expect(contrastRatio("#1c1a17", "#1C1A17")).toBeCloseTo(1, 10);
   });
 
   it("does not depend on argument order", () => {

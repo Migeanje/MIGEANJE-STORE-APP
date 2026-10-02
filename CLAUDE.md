@@ -31,7 +31,7 @@ CI (`.github/workflows/ci.yml`) runs install (frozen lockfile), lint, typecheck,
 - pnpm (version pinned in `packageManager`); Node from `.nvmrc`.
 - Biome for lint and format. No ESLint, no Prettier.
 - Vitest + Testing Library (jsdom). Tests live next to the code as `*.test.ts(x)`.
-- Fonts: Geist Sans + Geist Mono via `next/font/google` (`src/shared/ui/tokens/fonts.ts`).
+- Fonts: Geist Sans + Geist Mono from the self-hosted `geist` package (`next/font/local`, no network at build) in `src/shared/ui/tokens/fonts.ts`.
 - Planned in later tasks: Storybook, shadcn primitives (restyled), GSAP/Lenis.
 
 ## Architecture
@@ -58,6 +58,7 @@ src/
 - Colors use shadcn/ui variable names (`--background`, `--card`, `--primary`, `--muted-foreground`...) in `:root`, mapped to Tailwind utilities in `@theme inline` (`bg-card`, `text-muted-foreground`). Extras: `surface-raised`, `led-off`, `glow`.
 - Brand accent = `primary` (`#FCBA03`, the only UI accent). shadcn's `accent` is a subtle hover surface, not the brand.
 - Tailwind's default palette and radii are reset: only our tokens exist (`rounded-sm|md|lg|pill|full`, `text-display-xl|display-l|title|body|body-sm|caption`). Spacing keeps Tailwind's 4px scale. Motion: `duration-(--duration-fast|base|slow|story)`, `ease-out`, `ease-in-out`.
+- `rounded-full` is 50% (circles for square elements like the LED dot and avatars); use `rounded-pill` for buttons and any non-square pill shape.
 - Dark-only MVP. A light theme only redefines the `:root` values; components never change.
 - No raw hex (or other color literals) in components. No green in UI tokens; no amber/yellow warnings.
 - `tokens.test.ts` enforces WCAG 2.2 AA contrast for every allowed pair, the no-green rule and the shadcn mapping. It must stay green; add new pairs there when you add tokens.
