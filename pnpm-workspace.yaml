@@ -1,0 +1,3 @@
+allowBuilds:
+  # sharp ships prebuilt binaries (@img/sharp-*); its install script only builds from source.
+  sharp: false
