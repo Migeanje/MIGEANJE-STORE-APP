@@ -61,9 +61,9 @@ The repository is empty. The F1 identity decisions are closed (Engram, project `
 - 2026-10-02: T1 done — commit `37f0d8b` (19 files, ~396 authored lines + lockfile). Versions: next 16.3.8, react 19.3.0, tailwindcss 4.3.3, @biomejs/biome 2.5.15, typescript 7.0.2, vitest 5.0.3, pnpm 12.8.1; CI uses `pnpm/setup@v3` (action-setup only supports pnpm ≤10). Parent added `.gitattributes` (LF; Biome fails on CRLF with `core.autocrlf=true`).
   - Writer verification: `pnpm install --frozen-lockfile` ok; `pnpm lint` ok; `pnpm typecheck` ok (`next typegen && tsc --noEmit`); `pnpm test` 1/1 passed; `pnpm build` ok.
   - Parent spot check: `pnpm lint` ok (11 files); `pnpm test` 1/1 passed.
-  - Risk tier: high (`shell_source` on `.github/workflows/ci.yml`); review due — native review pending for base `e1742a6`.
+  - Risk tier: high (`shell_source` on `.github/workflows/ci.yml`); review due. Owner granted consent; 4-lens native review (lineage `review-159aa088e42ec39f`) approved with no blocker/critical findings; acknowledged, authority burned. Reviewed boundary: `3a6659b`.
   - Follow-ups: `.env.example` needs a `!.env.example` gitignore exception when added; actions use major tags (pin to SHAs later).
 
 ## Next step
 
-Native review of the T1 slice (base `e1742a6`), then T2 (tokens).
+T2 (tokens), delegated writer, test-first with WCAG contrast tests. Next review base: `3a6659b`.
