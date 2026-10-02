@@ -108,10 +108,7 @@ export function Button({
     >
       {/* Stays in the layout (and the accessible name) while loading, so the width holds. */}
       <span
-        className={cn(
-          "inline-flex items-center gap-2",
-          loading && "opacity-0",
-        )}
+        className={cn("inline-flex items-center gap-2", loading && "opacity-0")}
       >
         {leading}
         {children}

@@ -4,8 +4,9 @@ import { cn } from "./cn";
 describe("cn", () => {
   it("joins conditional class values like clsx", () => {
     const hidden = false;
-    expect(cn("px-4", hidden && "hidden", undefined, ["py-2", { flex: true }]))
-      .toBe("px-4 py-2 flex");
+    expect(
+      cn("px-4", hidden && "hidden", undefined, ["py-2", { flex: true }]),
+    ).toBe("px-4 py-2 flex");
   });
 
   it("keeps the last of two conflicting Tailwind classes", () => {

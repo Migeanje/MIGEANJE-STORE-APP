@@ -35,7 +35,8 @@ CI (`.github/workflows/ci.yml`) runs install (frozen lockfile), lint, typecheck,
 - Vitest + Testing Library (jsdom). Tests live next to the code as `*.test.ts(x)`.
 - Fonts: Geist Sans + Geist Mono from the self-hosted `geist` package (`next/font/local`, no network at build) in `src/shared/ui/tokens/fonts.ts`.
 - Storybook (`@storybook/nextjs-vite`) with the a11y and docs addons; config in `.storybook/`.
-- Planned in later tasks: shadcn primitives (restyled), GSAP/Lenis.
+- Components: `class-variance-authority` variants, `cn()` (clsx + tailwind-merge), `lucide-react` icons, `radix-ui` (Slot now; shadcn primitives later), `axe-core` in tests.
+- Planned in later tasks: GSAP/Lenis.
 
 ## Architecture
 
@@ -67,6 +68,14 @@ src/
 - `tokens.test.ts` enforces WCAG 2.2 AA contrast for every allowed pair, the no-green rule and the shadcn mapping. It must stay green.
 - The allowed pairs and thresholds live in `src/shared/ui/tokens/contrast-pairs.ts`, shared by `tokens.test.ts` and the Colors docs: add new pairs there when you add tokens. If a shadcn alias gets its own value, remove it from `ALIAS_SOURCES` there.
 - Never use `--led-off` as text on `--surface-raised` (3.97:1, below 4.5:1); use `--muted-foreground` for secondary text.
+
+## Components
+
+- Atoms are our own components: `src/shared/ui/atoms/<name>/` holds `<name>.tsx`, `<name>.test.tsx`, `<name>.stories.tsx` and `index.ts`. Story titles: `Atoms/<Name>` (then `Molecules/`, `Organisms/`).
+- shadcn/ui only for Radix-backed primitives where behavior and a11y matter (dialog/sheet, select, checkbox, radio group, tooltip, accordion, tabs...), never for trivial atoms. `components.json` sends them to `src/shared/ui/primitives` (style `radix-nova`, `radix-ui` package); restyle them with our tokens. Never run a shadcn command that rewrites `globals.css` or `tokens.css` (`init`, theme or preset changes).
+- Merge classes with `cn()` from `@/shared/lib/cn`. When you add a custom utility to `tokens.css` (`--text-*`, `--radius-*`, `--shadow-*`...), register it in `cn.ts` too, or tailwind-merge puts it in the wrong group (e.g. `text-display-xl` read as a color drops `text-foreground`).
+- Icons from `lucide-react` are decorative (`aria-hidden`); the text carries the meaning.
+- Every component needs behavior tests (Testing Library roles and names), an axe check with `expectNoAxeViolations` from `@/test/a11y` for every variant and state, and a story. jsdom cannot compute contrast, so axe's `color-contrast` rule is off there; `tokens.test.ts` and the Storybook a11y addon cover it.
 
 ## Storybook
 

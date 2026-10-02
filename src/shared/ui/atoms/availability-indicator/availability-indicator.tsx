@@ -53,7 +53,11 @@ export function AvailabilityIndicator({
       data-status={status}
       className={cn(indicatorVariants({ status }), className)}
     >
-      <span data-slot="led" aria-hidden="true" className={ledVariants({ status })} />
+      <span
+        data-slot="led"
+        aria-hidden="true"
+        className={ledVariants({ status })}
+      />
       <span>{children}</span>
     </span>
   );

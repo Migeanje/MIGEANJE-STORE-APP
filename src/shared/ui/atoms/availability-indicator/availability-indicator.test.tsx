@@ -11,13 +11,17 @@ const CASES = [
 
 describe("AvailabilityIndicator", () => {
   it.each(CASES)("shows the $status label as text", ({ status, label }) => {
-    render(<AvailabilityIndicator status={status}>{label}</AvailabilityIndicator>);
+    render(
+      <AvailabilityIndicator status={status}>{label}</AvailabilityIndicator>,
+    );
 
     expect(screen.getByText(label)).toBeInTheDocument();
   });
 
   it.each(CASES)("exposes data-status=$status", ({ status, label }) => {
-    render(<AvailabilityIndicator status={status}>{label}</AvailabilityIndicator>);
+    render(
+      <AvailabilityIndicator status={status}>{label}</AvailabilityIndicator>,
+    );
 
     expect(screen.getByText(label).closest("[data-status]")).toHaveAttribute(
       "data-status",
@@ -58,11 +62,14 @@ describe("AvailabilityIndicator", () => {
     expect(root).not.toHaveClass("text-body-sm");
   });
 
-  it.each(CASES)("has no axe violations as $status", async ({ status, label }) => {
-    const { container } = render(
-      <AvailabilityIndicator status={status}>{label}</AvailabilityIndicator>,
-    );
+  it.each(CASES)(
+    "has no axe violations as $status",
+    async ({ status, label }) => {
+      const { container } = render(
+        <AvailabilityIndicator status={status}>{label}</AvailabilityIndicator>,
+      );
 
-    await expectNoAxeViolations(container);
-  });
+      await expectNoAxeViolations(container);
+    },
+  );
 });
