@@ -10,14 +10,30 @@ export function readCssVar(source: PropertySource, name: string): string {
   return source.getPropertyValue(name).trim();
 }
 
+const PIXELS = /^(\d+(?:\.\d+)?)px$/;
+
+/**
+ * Reads a resolved length such as `getComputedStyle(el).paddingTop` ("8px")
+ * as a number of pixels. Returns null for anything else (percentages, other
+ * units, lists), so callers never do math on a value they cannot trust.
+ */
+export function toPixels(value: string): number | null {
+  const pixels = PIXELS.exec(value.trim());
+  return pixels ? Number(pixels[1]) : null;
+}
+
 const HEX = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
-const RGB = /^rgb\(\s*(\d{1,3})\s*,?\s*(\d{1,3})\s*,?\s*(\d{1,3})\s*\)$/i;
+// One separator style per color: every channel split by a comma, or every
+// channel split by whitespace. Never both, never none.
+const RGB_COMMAS = /^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$/i;
+const RGB_SPACES = /^rgb\(\s*(\d{1,3})\s+(\d{1,3})\s+(\d{1,3})\s*\)$/i;
 
 /**
  * Normalizes an opaque sRGB color (`#rgb`, `#rrggbb`, `rgb(r g b)` or
- * `rgb(r, g, b)`) to lowercase `#rrggbb`, the input `contrast.ts` expects.
- * Returns null for anything else (keywords, `color-mix()`, alpha), because a
- * contrast ratio is only meaningful for opaque colors.
+ * `rgb(r, g, b)` with integer channels 0-255) to lowercase `#rrggbb`, the
+ * input `contrast.ts` expects. Returns null for anything else (keywords,
+ * `color-mix()`, alpha, malformed or out-of-range channels), because a
+ * contrast ratio is only meaningful for well-formed opaque colors.
  */
 export function toHexColor(value: string): string | null {
   const color = value.trim();
@@ -27,7 +43,7 @@ export function toHexColor(value: string): string | null {
       ? `#${[...digits].map((digit) => digit + digit).join("")}`
       : `#${digits}`;
   }
-  const rgb = RGB.exec(color);
+  const rgb = RGB_COMMAS.exec(color) ?? RGB_SPACES.exec(color);
   if (!rgb) {
     return null;
   }

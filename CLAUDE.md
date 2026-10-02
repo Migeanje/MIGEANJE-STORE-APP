@@ -64,7 +64,8 @@ src/
 - `rounded-full` is 50% (circles for square elements like the LED dot and avatars); use `rounded-pill` for buttons and any non-square pill shape.
 - Dark-only MVP. A light theme only redefines the `:root` values; components never change.
 - No raw hex (or other color literals) in components. No green in UI tokens; no amber/yellow warnings.
-- `tokens.test.ts` enforces WCAG 2.2 AA contrast for every allowed pair, the no-green rule and the shadcn mapping. It must stay green; add new pairs there when you add tokens.
+- `tokens.test.ts` enforces WCAG 2.2 AA contrast for every allowed pair, the no-green rule and the shadcn mapping. It must stay green.
+- The allowed pairs and thresholds live in `src/shared/ui/tokens/contrast-pairs.ts`, shared by `tokens.test.ts` and the Colors docs: add new pairs there when you add tokens. If a shadcn alias gets its own value, remove it from `ALIAS_SOURCES` there.
 - Never use `--led-off` as text on `--surface-raised` (3.97:1, below 4.5:1); use `--muted-foreground` for secondary text.
 
 ## Storybook

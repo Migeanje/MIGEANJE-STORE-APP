@@ -3,13 +3,16 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { contrastRatio, parseHex } from "./contrast";
+import {
+  ALIAS_SOURCES,
+  CONTRAST_PAIRS,
+  collapseAliases,
+} from "./contrast-pairs";
 
 // Guards the design tokens in tokens.css: WCAG 2.2 AA contrast for every
-// pair components are allowed to combine, the "no green in UI" rule, and the
-// shadcn naming contract. If a token changes, these tests must stay green.
-
-const TEXT_MIN = 4.5; // SC 1.4.3 normal text
-const NON_TEXT_MIN = 3; // SC 1.4.11 UI components and graphical objects
+// pair components are allowed to combine (listed in contrast-pairs.ts), the
+// "no green in UI" rule, and the shadcn naming contract. If a token changes,
+// these tests must stay green.
 
 const source = readFileSync(join(import.meta.dirname, "tokens.css"), "utf8");
 const css = source.replace(/\/\*[\s\S]*?\*\//g, "");
@@ -104,51 +107,6 @@ const APPROVED_RADII = {
   "--radius-full": "50%",
 };
 
-// Every surface a piece of text or a control may sit on.
-const SURFACES = [
-  "--background",
-  "--card",
-  "--popover",
-  "--secondary",
-  "--muted",
-  "--accent",
-  "--surface-raised",
-] as const;
-
-// Text tokens that may appear on any surface. `--primary` is included because
-// the brand amber is also used for text (links, selected labels).
-const TEXT_ON_ANY_SURFACE = [
-  "--foreground",
-  "--card-foreground",
-  "--popover-foreground",
-  "--secondary-foreground",
-  "--muted-foreground",
-  "--accent-foreground",
-  "--primary",
-  "--destructive",
-] as const;
-
-type Pair = { fg: string; bg: string; min: number };
-
-const pairs: Pair[] = [
-  ...TEXT_ON_ANY_SURFACE.flatMap((fg) =>
-    SURFACES.map((bg) => ({ fg, bg, min: TEXT_MIN })),
-  ),
-  { fg: "--primary-foreground", bg: "--primary", min: TEXT_MIN },
-  { fg: "--destructive-foreground", bg: "--destructive", min: TEXT_MIN },
-  // Focus ring and lit LED (non-text).
-  ...SURFACES.map((bg) => ({ fg: "--ring", bg, min: NON_TEXT_MIN })),
-  // Unavailable LED ring (non-text). Not for text on --surface-raised.
-  ...SURFACES.map((bg) => ({ fg: "--led-off", bg, min: NON_TEXT_MIN })),
-  // Form field borders identify the control (non-text). `--border` is
-  // decorative (dividers, card outlines) and is exempt from SC 1.4.11.
-  ...(["--background", "--card", "--popover"] as const).map((bg) => ({
-    fg: "--input",
-    bg,
-    min: NON_TEXT_MIN,
-  })),
-];
-
 function hueAndSaturation(hex: string): { hue: number; saturation: number } {
   const { r, g, b } = parseHex(hex);
   const [rn, gn, bn] = [r / 255, g / 255, b / 255];
@@ -183,12 +141,28 @@ describe("design tokens", () => {
     expect(resolveHex("--primary").toUpperCase()).toBe("#FCBA03");
   });
 
-  it.each(pairs)("$fg on $bg meets $min:1", ({ fg, bg, min }) => {
+  it.each(CONTRAST_PAIRS)("$fg on $bg meets $min:1", ({ fg, bg, min }) => {
     const ratio = contrastRatio(resolveHex(fg), resolveHex(bg));
     expect(
       ratio,
       `${fg} on ${bg} is ${ratio.toFixed(2)}:1, needs ${min}:1`,
     ).toBeGreaterThanOrEqual(min);
+  });
+
+  // The Colors docs collapse these aliases; a token with its own value must
+  // leave ALIAS_SOURCES so its pairs are shown again.
+  it.each([...ALIAS_SOURCES])("aliases %s to %s", (alias, target) => {
+    expect(tokens.get(alias)).toBe(`var(${target})`);
+  });
+
+  it("collapses alias pairs into pairs that are enforced as-is", () => {
+    const collapsed = collapseAliases(CONTRAST_PAIRS);
+    const names = collapsed.flatMap(({ fg, bg }) => [fg, bg]);
+
+    expect(names.filter((name) => ALIAS_SOURCES.has(name))).toEqual([]);
+    for (const pair of collapsed) {
+      expect(CONTRAST_PAIRS).toContainEqual(pair);
+    }
   });
 
   it("keeps every color literal in :root so a theme only redefines values", () => {

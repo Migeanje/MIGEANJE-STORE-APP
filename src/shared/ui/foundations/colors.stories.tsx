@@ -1,5 +1,14 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { contrastRatio } from "../tokens/contrast";
+import {
+  type ContrastPair,
+  collapseAliases,
+  FILLED_PAIRS,
+  NON_TEXT_MIN,
+  NON_TEXT_PAIRS,
+  TEXT_MIN,
+  TEXT_PAIRS,
+} from "../tokens/contrast-pairs";
 import { toHexColor } from "./css-vars";
 import { DocPage, DocSection, Swatch, useCssVars } from "./doc-blocks";
 
@@ -74,41 +83,32 @@ const GROUPS: TokenGroup[] = [
   },
 ];
 
-type ContrastPair = { fg: string; bg: string };
-
-const SURFACES = ["background", "card", "surface-raised"];
-const TEXT_MIN = 4.5;
-const NON_TEXT_MIN = 3;
-
-// Same allowed pairs as tokens.test.ts (aliases collapsed to their source).
-const TEXT_PAIRS: ContrastPair[] = [
-  "foreground",
-  "muted-foreground",
-  "primary",
-  "destructive",
-].flatMap((fg) => SURFACES.map((bg) => ({ fg, bg })));
-
-const FILLED_PAIRS: ContrastPair[] = [
-  { fg: "primary-foreground", bg: "primary" },
-  { fg: "destructive-foreground", bg: "destructive" },
-];
-
-const NON_TEXT_PAIRS: ContrastPair[] = [
-  ...SURFACES.map((bg) => ({ fg: "ring", bg })),
-  ...SURFACES.map((bg) => ({ fg: "led-off", bg })),
-  { fg: "input", bg: "background" },
-  { fg: "input", bg: "card" },
-];
+// The pairs tokens.test.ts enforces (contrast-pairs.ts), with shadcn aliases
+// collapsed to their source token.
+const TEXT_ROWS = collapseAliases(TEXT_PAIRS);
+const FILLED_ROWS = collapseAliases(FILLED_PAIRS);
+const NON_TEXT_ROWS = collapseAliases(NON_TEXT_PAIRS);
 
 const cssVar = (name: string) => `--${name}`;
+/** `--muted-foreground` -> `muted-foreground`, as the swatches name tokens. */
+const tokenName = (variable: string) => variable.replace(/^--/, "");
 
 const ALL_COLOR_VARS = GROUPS.flatMap((group) =>
   group.tokens.map((token) => cssVar(token.name)),
 );
 
+const CONTRAST_VARS = [
+  ...new Set(
+    [...TEXT_ROWS, ...FILLED_ROWS, ...NON_TEXT_ROWS].flatMap((pair) => [
+      pair.fg,
+      pair.bg,
+    ]),
+  ),
+];
+
 function ratioOf(values: Record<string, string>, pair: ContrastPair) {
-  const fg = toHexColor(values[cssVar(pair.fg)] ?? "");
-  const bg = toHexColor(values[cssVar(pair.bg)] ?? "");
+  const fg = toHexColor(values[pair.fg] ?? "");
+  const bg = toHexColor(values[pair.bg] ?? "");
   return fg && bg ? contrastRatio(fg, bg) : null;
 }
 
@@ -152,12 +152,12 @@ function ContrastSample({
   return (
     <span
       className="inline-flex items-center rounded-sm border px-3 py-2"
-      style={{ background: `var(${cssVar(pair.bg)})` }}
+      style={{ background: `var(${pair.bg})` }}
     >
       {kind === "text" ? (
         <span
           className="text-body-sm font-medium whitespace-nowrap"
-          style={{ color: `var(${cssVar(pair.fg)})` }}
+          style={{ color: `var(${pair.fg})` }}
         >
           S/ 129.90
         </span>
@@ -165,7 +165,7 @@ function ContrastSample({
         <span
           aria-hidden="true"
           className="block size-5 rounded-full border-2"
-          style={{ borderColor: `var(${cssVar(pair.fg)})` }}
+          style={{ borderColor: `var(${pair.fg})` }}
         />
       )}
     </span>
@@ -208,14 +208,14 @@ function ContrastTable({
       <tbody>
         {pairs.map((pair) => {
           const ratio = ratioOf(values, pair);
-          const passes = ratio !== null && ratio >= min;
+          const passes = ratio !== null && ratio >= pair.min;
           return (
             <tr key={`${pair.fg}/${pair.bg}`} className="border-b">
               <th scope="row" className="py-3 pr-3 font-normal sm:pr-4">
                 <span className="flex flex-col">
-                  <span>{pair.fg}</span>
+                  <span>{tokenName(pair.fg)}</span>
                   <span className="text-caption text-muted-foreground">
-                    on {pair.bg}
+                    on {tokenName(pair.bg)}
                   </span>
                 </span>
               </th>
@@ -239,7 +239,7 @@ function ContrastTable({
 }
 
 function ContrastReport() {
-  const values = useCssVars(ALL_COLOR_VARS);
+  const values = useCssVars(CONTRAST_VARS);
   return (
     <DocPage
       title="Contrast"
@@ -251,7 +251,7 @@ function ContrastReport() {
       >
         <ContrastTable
           caption="Text tokens on every surface"
-          pairs={TEXT_PAIRS}
+          pairs={TEXT_ROWS}
           kind="text"
           values={values}
         />
@@ -259,7 +259,7 @@ function ContrastReport() {
       <DocSection title="Text on filled colors">
         <ContrastTable
           caption="Foreground tokens on their filled backgrounds"
-          pairs={FILLED_PAIRS}
+          pairs={FILLED_ROWS}
           kind="text"
           values={values}
         />
@@ -270,7 +270,7 @@ function ContrastReport() {
       >
         <ContrastTable
           caption="Non-text tokens on surfaces"
-          pairs={NON_TEXT_PAIRS}
+          pairs={NON_TEXT_ROWS}
           kind="non-text"
           values={values}
         />
