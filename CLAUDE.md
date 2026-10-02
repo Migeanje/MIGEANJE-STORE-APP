@@ -31,7 +31,8 @@ CI (`.github/workflows/ci.yml`) runs install (frozen lockfile), lint, typecheck,
 - pnpm (version pinned in `packageManager`); Node from `.nvmrc`.
 - Biome for lint and format. No ESLint, no Prettier.
 - Vitest + Testing Library (jsdom). Tests live next to the code as `*.test.ts(x)`.
-- Planned in later tasks: Storybook, shadcn primitives (restyled), GSAP/Lenis, fonts and design tokens.
+- Fonts: Geist Sans + Geist Mono via `next/font/google` (`src/shared/ui/tokens/fonts.ts`).
+- Planned in later tasks: Storybook, shadcn primitives (restyled), GSAP/Lenis.
 
 ## Architecture
 
@@ -50,6 +51,17 @@ src/
 - `DATA_SOURCE=mock|medusa` selects the infrastructure adapters.
 - Routes are in Spanish: `/productos/[slug]`, `/categorias/[slug]`, `/marcas/[slug]`.
 - Create module folders only when they get their first file (git does not track empty folders).
+
+## Design tokens
+
+- All tokens live in `src/shared/ui/tokens/tokens.css` (imported by `src/app/globals.css`).
+- Colors use shadcn/ui variable names (`--background`, `--card`, `--primary`, `--muted-foreground`...) in `:root`, mapped to Tailwind utilities in `@theme inline` (`bg-card`, `text-muted-foreground`). Extras: `surface-raised`, `led-off`, `glow`.
+- Brand accent = `primary` (`#FCBA03`, the only UI accent). shadcn's `accent` is a subtle hover surface, not the brand.
+- Tailwind's default palette and radii are reset: only our tokens exist (`rounded-sm|md|lg|pill|full`, `text-display-xl|display-l|title|body|body-sm|caption`). Spacing keeps Tailwind's 4px scale. Motion: `duration-(--duration-fast|base|slow|story)`, `ease-out`, `ease-in-out`.
+- Dark-only MVP. A light theme only redefines the `:root` values; components never change.
+- No raw hex (or other color literals) in components. No green in UI tokens; no amber/yellow warnings.
+- `tokens.test.ts` enforces WCAG 2.2 AA contrast for every allowed pair, the no-green rule and the shadcn mapping. It must stay green; add new pairs there when you add tokens.
+- Never use `--led-off` as text on `--surface-raised` (3.97:1, below 4.5:1); use `--muted-foreground` for secondary text.
 
 ## Language contract
 

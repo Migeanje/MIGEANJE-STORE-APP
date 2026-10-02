@@ -1,0 +1,176 @@
+/*
+ * Migeanje Store design tokens ("night greenhouse").
+ *
+ * - Brand accent = `primary` (#FCBA03, warm LED amber). It is the ONLY UI
+ *   accent. `accent` follows shadcn/ui: a subtle hover surface, NOT the brand.
+ * - No green in UI tokens (green lives only in photography) and no amber/yellow
+ *   warnings. Errors use `destructive`.
+ * - `:root` holds every raw color value with shadcn/ui variable names. A future
+ *   light theme only redefines these values; components never change.
+ * - Components use the Tailwind utilities below (`bg-card`, `text-muted-foreground`,
+ *   `rounded-lg`, `text-display-xl`...). Never raw hex in components.
+ * - Contrast and naming are enforced by tokens.test.ts (WCAG 2.2 AA).
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* Surfaces, darkest to lightest. */
+  --background: #0f0e0c;
+  --card: #1c1a17;
+  --surface-raised: #2a2723;
+  --popover: var(--card);
+  --secondary: var(--surface-raised);
+  --muted: var(--surface-raised);
+  --accent: var(--surface-raised);
+
+  /* Text. Both levels pass 4.5:1 on every surface. */
+  --foreground: #f2eee6;
+  --muted-foreground: #a39c91;
+  --card-foreground: var(--foreground);
+  --popover-foreground: var(--foreground);
+  --secondary-foreground: var(--foreground);
+  --accent-foreground: var(--foreground);
+
+  /* Brand amber: CTAs, focus, selection, lit LED. */
+  --primary: #fcba03;
+  --primary-foreground: #0f0e0c;
+  --ring: var(--primary);
+  --glow: color-mix(in srgb, var(--primary) 45%, transparent);
+
+  /* Errors and destructive actions (warm red). */
+  --destructive: #ff7a6b;
+  --destructive-foreground: #0f0e0c;
+
+  /* Lines. `border` is decorative; `input` identifies form fields (>= 3:1). */
+  --border: #3a3631;
+  --input: #7d776d;
+
+  /* Unavailable LED ring (non-text, >= 3:1). Not for text on surface-raised. */
+  --led-off: #8a8379;
+
+  /* Motion. Use with `duration-(--duration-base)`. */
+  --duration-fast: 120ms; /* LED, hover */
+  --duration-base: 240ms; /* drawer, toggles */
+  --duration-slow: 480ms; /* section reveal */
+  --duration-story: 800ms; /* hero only */
+}
+
+/* Static tokens: identical in every theme. */
+@theme {
+  /* Only our tokens exist: drop Tailwind's default palette and radii. */
+  --color-*: initial;
+  --radius-*: initial;
+
+  /* Radii. Nested corners stay concentric: inner = outer - padding. */
+  --radius-sm: 0.375rem; /* 6px: tags, chips */
+  --radius-md: 0.75rem; /* 12px: inputs, thumbnails */
+  --radius-lg: 1.25rem; /* 20px: cards, panels, cart */
+  --radius-pill: 9999px; /* buttons */
+  --radius-full: 50%; /* LED, avatars */
+
+  /* Type scale: two extremes. Fluid between 20rem and 80rem viewports. */
+  --text-display-xl: clamp(2.75rem, 1.6667rem + 5.4167vw, 6rem);
+  --text-display-xl--line-height: 0.9;
+  --text-display-xl--letter-spacing: -0.04em;
+  --text-display-xl--font-weight: 500;
+
+  --text-display-l: clamp(2rem, 1.5rem + 2.5vw, 3.5rem);
+  --text-display-l--line-height: 0.95;
+  --text-display-l--letter-spacing: -0.03em;
+  --text-display-l--font-weight: 500;
+
+  --text-title: clamp(1.5rem, 1.3333rem + 0.8333vw, 2rem);
+  --text-title--line-height: 1.15;
+  --text-title--letter-spacing: -0.02em;
+  --text-title--font-weight: 500;
+
+  --text-body: 1rem;
+  --text-body--line-height: 1.5;
+
+  --text-body-sm: 0.875rem;
+  --text-body-sm--line-height: 1.5;
+
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.4;
+  --text-caption--letter-spacing: 0.01em;
+
+  /* Easing: entries and reveals ease out; drawers ease in-out. */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+/* Theme-dependent tokens: Tailwind utilities that point at :root values. */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-surface-raised: var(--surface-raised);
+  --color-led-off: var(--led-off);
+
+  /* next/font exposes these variables on <html> (see fonts.ts). */
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono:
+    var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Consolas,
+    monospace;
+
+  /* "Encendido": soft amber glow for the lit LED and active CTAs. */
+  --shadow-glow: 0 0 0.75rem 0.125rem var(--glow);
+
+  /* Plain `transition` follows our motion defaults. */
+  --default-transition-duration: var(--duration-fast);
+  --default-transition-timing-function: var(--ease-out);
+}
+
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--border);
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+  }
+
+  /* Amber ring: >= 8.6:1 on every surface. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  /*
+   * State changes still happen, just instantly (0.01ms keeps transitionend and
+   * animationend events firing). No smooth scroll. `!important` inside a layer
+   * beats every later layer's styles, including utilities.
+   */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      /* biome-ignore-start lint/complexity/noImportantStyles: reduced motion must win over component motion */
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+      /* biome-ignore-end lint/complexity/noImportantStyles: reduced motion must win over component motion */
+    }
+  }
+}

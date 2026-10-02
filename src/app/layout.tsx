@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { geistMono, geistSans } from "@/shared/ui/tokens/fonts";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -9,7 +10,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="es-PE">
+    <html
+      lang="es-PE"
+      className={`${geistSans.variable} ${geistMono.variable}`}
+    >
       <body className="antialiased">{children}</body>
     </html>
   );
