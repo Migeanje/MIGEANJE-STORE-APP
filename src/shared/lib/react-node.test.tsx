@@ -12,8 +12,11 @@ describe("isEmptyNode", () => {
     ["an empty array", []],
     ["an array of empty values", [null, undefined, false, true, ""]],
     ["nested empty arrays", [[], [null, [false]]]],
-    ["an empty fragment", createElement(Fragment)],
-    ["a fragment of empty values", createElement(Fragment, null, null, "")],
+    ["an empty fragment", createElement(Fragment, { key: "empty" })],
+    [
+      "a fragment of empty values",
+      createElement(Fragment, { key: "empty-values" }, null, ""),
+    ],
   ])("treats %s as empty", (_label, node) => {
     expect(isEmptyNode(node)).toBe(true);
   });
@@ -26,7 +29,7 @@ describe("isEmptyNode", () => {
     ["an array with one value", [null, "Ingresa tu nombre."]],
     [
       "a fragment with text",
-      createElement(Fragment, null, "Ingresa tu nombre."),
+      createElement(Fragment, { key: "text" }, "Ingresa tu nombre."),
     ],
   ])("treats %s as content", (_label, node) => {
     expect(isEmptyNode(node)).toBe(false);

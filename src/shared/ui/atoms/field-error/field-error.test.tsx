@@ -34,7 +34,7 @@ describe("FieldError", () => {
     ["an empty array", []],
     ["an array of only empty values", [null, false, "", undefined]],
     ["nested empty arrays", [[], [null]]],
-    ["an empty fragment", createElement(Fragment)],
+    ["an empty fragment", createElement(Fragment, { key: "empty" })],
   ])("renders nothing with %s", (_label, message) => {
     const { container } = render(
       <FieldError id="email-error">{message}</FieldError>,
