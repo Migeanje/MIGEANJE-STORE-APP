@@ -78,7 +78,11 @@ src/
 - Every component needs behavior tests (Testing Library roles and names), an axe check with `expectNoAxeViolations` from `@/test/a11y` for every variant and state, and a story. jsdom cannot compute contrast, so axe's `color-contrast` rule is off there; `tokens.test.ts` and the Storybook a11y addon cover it.
 - Spread `{...props}` first and computed attributes after it: TypeScript accepts any `aria-*`/`data-*` JSX attribute, so omitting one from the props type does not stop a caller from overriding state such as `aria-busy`.
 - Atoms with state or event handlers that own state (e.g. `Chip`) start with `"use client"`; Storybook's Vite build warns that it ignores the directive, which is expected.
-- Keyboard tests: jsdom does not turn Enter/Space into a click. Use `uninstrumentedUserEvent` from `storybook/test` (plain `@testing-library/user-event`, no extra dependency).
+- Molecules (`src/shared/ui/molecules/<name>/`, same four files) compose atoms; never re-implement an atom's styles.
+- Form fields: wrap controls in `FormField`. Its `children` is a render prop that receives the wired props (`id`, `aria-describedby`, `aria-invalid`, `required`/`aria-required`): `{(control) => <Input {...control} type="email" />}`; without children it renders an `Input`. Decide whether an optional slot (error, hint) exists with `isEmptyNode` from `@/shared/lib/react-node`, the same check `FieldError` uses.
+- Icon-only buttons get their name from visually hidden text (`<span className="sr-only">Buscar</span>` plus a decorative `leadingIcon`), not `aria-label`.
+- Clickable cards (`ProductCard`) use the stretched-link pattern: one link on the title with `after:absolute after:inset-0` inside a `relative` card, no other interactive elements, and the focus ring on the card via `has-focus-visible:`.
+- Interaction tests: jsdom does not turn Enter/Space into a click. Use `@testing-library/user-event` (`userEvent.setup()`) for keyboard, typing and pointer flows; `fireEvent` only for single synthetic events.
 
 ## Money
 

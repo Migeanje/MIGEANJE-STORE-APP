@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="480" viewBox="0 0 480 480">
+  <title>Placeholder product: generic wall charger</title>
+  <!-- Neutral stand-in for a transparent product cutout: a generic wall
+       charger with no brand marks. Story and test fixture only. -->
+  <defs>
+    <linearGradient id="body" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f2eee6"/>
+      <stop offset="1" stop-color="#bdb6aa"/>
+    </linearGradient>
+    <linearGradient id="prong" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#8a8379"/>
+      <stop offset="1" stop-color="#a39c91"/>
+    </linearGradient>
+  </defs>
+  <rect x="196" y="72" width="16" height="52" rx="5" fill="url(#prong)"/>
+  <rect x="268" y="72" width="16" height="52" rx="5" fill="url(#prong)"/>
+  <rect x="140" y="116" width="200" height="252" rx="48" fill="url(#body)"/>
+  <rect x="152" y="128" width="176" height="228" rx="38" fill="none" stroke="#f2eee6" stroke-opacity="0.5" stroke-width="2"/>
+  <rect x="214" y="246" width="52" height="22" rx="5" fill="#2a2723"/>
+  <rect x="206" y="290" width="68" height="14" rx="7" fill="#2a2723"/>
+  <rect x="206" y="318" width="68" height="14" rx="7" fill="#2a2723"/>
+</svg>
