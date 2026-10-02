@@ -100,11 +100,13 @@ export function Button({
 
   return (
     <button
+      {...props}
+      // After the spread: `loading` is the single source of `aria-busy` and
+      // `disabled`, even if a caller passes `aria-busy` (review R3-001).
       type={type ?? "button"}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
       className={classes}
-      {...props}
     >
       {/* Stays in the layout (and the accessible name) while loading, so the width holds. */}
       <span

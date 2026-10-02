@@ -73,6 +73,22 @@ describe("Button", () => {
     expect(onClick).not.toHaveBeenCalled();
   });
 
+  it("keeps loading as the only source of aria-busy (review R3-001)", () => {
+    // TypeScript accepts any `aria-*` JSX attribute, so the runtime must guard.
+    const { rerender } = render(
+      <Button loading aria-busy={false}>
+        Agregar al carrito
+      </Button>,
+    );
+    const button = screen.getByRole("button", { name: "Agregar al carrito" });
+    expect(button).toHaveAttribute("aria-busy", "true");
+    expect(button).toBeDisabled();
+
+    rerender(<Button aria-busy>Agregar al carrito</Button>);
+    expect(button).not.toHaveAttribute("aria-busy");
+    expect(button).toBeEnabled();
+  });
+
   it("shows a decorative spinner only while loading", () => {
     const { rerender } = render(<Button>Agregar al carrito</Button>);
     const button = screen.getByRole("button", { name: "Agregar al carrito" });
