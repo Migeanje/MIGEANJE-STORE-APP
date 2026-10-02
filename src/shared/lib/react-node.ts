@@ -12,7 +12,10 @@ export function isEmptyNode(node: ReactNode): boolean {
   }
   if (typeof node === "string") return node === "";
   if (Array.isArray(node)) return node.every(isEmptyNode);
-  if (isValidElement<{ children?: ReactNode }>(node) && node.type === Fragment) {
+  if (
+    isValidElement<{ children?: ReactNode }>(node) &&
+    node.type === Fragment
+  ) {
     return isEmptyNode(node.props.children);
   }
   return false;

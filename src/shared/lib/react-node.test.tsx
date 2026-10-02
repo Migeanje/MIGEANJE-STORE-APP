@@ -24,7 +24,10 @@ describe("isEmptyNode", () => {
     ["the number 0", 0],
     ["an element", <strong key="strong">Obligatorio</strong>],
     ["an array with one value", [null, "Ingresa tu nombre."]],
-    ["a fragment with text", createElement(Fragment, null, "Ingresa tu nombre.")],
+    [
+      "a fragment with text",
+      createElement(Fragment, null, "Ingresa tu nombre."),
+    ],
   ])("treats %s as content", (_label, node) => {
     expect(isEmptyNode(node)).toBe(false);
   });

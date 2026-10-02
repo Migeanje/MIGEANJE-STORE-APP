@@ -65,25 +65,22 @@ describe("Heading", () => {
     expect(heading).not.toHaveClass("text-foreground");
   });
 
-  it.each([
-    0,
-    7,
-    -1,
-    2.5,
-    Number.NaN,
-  ])("throws a RangeError naming the allowed range for level %s", (level) => {
-    // React logs the render error before rethrowing it; keep the output clean.
-    vi.spyOn(console, "error").mockImplementation(() => {});
+  it.each([0, 7, -1, 2.5, Number.NaN])(
+    "throws a RangeError naming the allowed range for level %s",
+    (level) => {
+      // React logs the render error before rethrowing it; keep the output clean.
+      vi.spyOn(console, "error").mockImplementation(() => {});
 
-    // Untyped data (CMS, JSON) can reach the component with any number.
-    const renderHeading = () =>
-      render(<Heading level={level as HeadingLevel}>Cargadores</Heading>);
+      // Untyped data (CMS, JSON) can reach the component with any number.
+      const renderHeading = () =>
+        render(<Heading level={level as HeadingLevel}>Cargadores</Heading>);
 
-    expect(renderHeading).toThrow(RangeError);
-    expect(renderHeading).toThrow(
-      `Heading level must be an integer from 1 to 6, got ${level}`,
-    );
-  });
+      expect(renderHeading).toThrow(RangeError);
+      expect(renderHeading).toThrow(
+        `Heading level must be an integer from 1 to 6, got ${level}`,
+      );
+    },
+  );
 
   it("has no axe violations at every level and size", async () => {
     const { container } = render(
