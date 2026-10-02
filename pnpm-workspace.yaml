@@ -1,3 +1,6 @@
 allowBuilds:
   # sharp ships prebuilt binaries (@img/sharp-*); its install script only builds from source.
   sharp: false
+  # esbuild (via Storybook) gets its binary from the @esbuild/<platform> optional
+  # dependency; its install script only re-checks or downloads that binary.
+  esbuild: false

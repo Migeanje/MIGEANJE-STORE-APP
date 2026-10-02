@@ -26,5 +26,9 @@ Open http://localhost:3000.
 | `pnpm format` | Format with Biome |
 | `pnpm typecheck` | TypeScript check |
 | `pnpm test` / `pnpm test:watch` | Vitest |
+| `pnpm storybook` | Storybook on http://localhost:6006 |
+| `pnpm build-storybook` | Static Storybook build (`storybook-static/`) |
+
+Design foundations (colors, typography, spacing, radii, motion) are documented in Storybook under `Foundations/*` (`src/shared/ui/foundations/`). Every new UI component needs a story.
 
 Conventions for contributors (and coding agents) are in [`CLAUDE.md`](./CLAUDE.md).

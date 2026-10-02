@@ -21,8 +21,10 @@ Next.js storefront for Migeanje Store, a premium tech accessories shop for Peru 
 | `pnpm typecheck` | Generate Next.js route types, then `tsc --noEmit` |
 | `pnpm test` | Vitest, single run |
 | `pnpm test:watch` | Vitest, watch mode |
+| `pnpm storybook` | Storybook dev server on http://localhost:6006 |
+| `pnpm build-storybook` | Static Storybook build into `storybook-static/` |
 
-CI (`.github/workflows/ci.yml`) runs install (frozen lockfile), lint, typecheck, test and build on every PR and on push to `main`.
+CI (`.github/workflows/ci.yml`) runs install (frozen lockfile), lint, typecheck, test, build and build-storybook on every PR and on push to `main`.
 
 ## Stack
 
@@ -32,7 +34,8 @@ CI (`.github/workflows/ci.yml`) runs install (frozen lockfile), lint, typecheck,
 - Biome for lint and format. No ESLint, no Prettier.
 - Vitest + Testing Library (jsdom). Tests live next to the code as `*.test.ts(x)`.
 - Fonts: Geist Sans + Geist Mono from the self-hosted `geist` package (`next/font/local`, no network at build) in `src/shared/ui/tokens/fonts.ts`.
-- Planned in later tasks: Storybook, shadcn primitives (restyled), GSAP/Lenis.
+- Storybook (`@storybook/nextjs-vite`) with the a11y and docs addons; config in `.storybook/`.
+- Planned in later tasks: shadcn primitives (restyled), GSAP/Lenis.
 
 ## Architecture
 
@@ -63,6 +66,13 @@ src/
 - No raw hex (or other color literals) in components. No green in UI tokens; no amber/yellow warnings.
 - `tokens.test.ts` enforces WCAG 2.2 AA contrast for every allowed pair, the no-green rule and the shadcn mapping. It must stay green; add new pairs there when you add tokens.
 - Never use `--led-off` as text on `--surface-raised` (3.97:1, below 4.5:1); use `--muted-foreground` for secondary text.
+
+## Storybook
+
+- Foundations docs (Colors, Typography, Spacing, Radii, Motion) live in `src/shared/ui/foundations/` as `Foundations/*` stories. They read token values from the computed CSS variables; never hardcode values there.
+- Every new UI component needs a story next to it (`*.stories.tsx`). The a11y addon must report no violations.
+- Stories always render on our tokens: the backgrounds feature is disabled, and `preview.tsx` loads `globals.css` and the Geist variables like `src/app/layout.tsx`.
+- Storybook aliases `geist/font/sans|mono` to `.storybook/geist-fonts.ts`: its `next/font` transform skips node_modules, so the `geist` package's own loaders do not bundle there.
 
 ## Language contract
 
