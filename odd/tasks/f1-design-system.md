@@ -31,10 +31,10 @@ The repository is empty. The F1 identity decisions are closed (Engram, project `
 | T2 | Tokens: Tailwind v4 `@theme` (semantic dark colors, Geist Sans/Mono via `next/font`, type scale, 4px spacing, radii, motion + reduced-motion base) + WCAG contrast tests on token pairs | Delegated (writer) | 2+ non-trivial files | Done — `b9f361e` |
 | T2.1 | Token hardening from T2 review advisories: self-hosted `geist` fonts (R3-001), float-safe asserts (R3-002), 3-digit hex green guard (R3-003), radii test (R3-004) | Delegated (writer) | 3+ files incl. dependency change | Done — `e59e884` |
 | T3 | Storybook (latest, Next.js framework) + a11y addon + token docs (Colors, Typography, Spacing, Radii, Motion) | Delegated (writer) | 2+ non-trivial files | Done — `2b0aa2e` |
-| T3.1 | Foundations docs hardening from T3 review advisories: shared contrast-pair list for test + docs (R2-001), radii demo reads tokens (R2-002), strict `toHexColor` parsing + tests (R3-001) | Delegated (writer) | 3+ files | Pending |
+| T3.1 | Foundations docs hardening from T3 review advisories: shared contrast-pair list for test + docs (R2-001), radii demo reads tokens (R2-002), strict `toHexColor` parsing + tests (R3-001) | Delegated (writer) | 3+ files | Done — `7c84b6b` |
 | T4 | Owner visual review of tokens in Storybook (neutral scale, type scale, spacing) | Inline | Decision only, no writes | Done — owner approved the whole style (2026-10-02) |
-| T5a | Atom infrastructure + first atoms: shadcn setup (primitives in `src/shared/ui/primitives`, `cn` util), automated axe checks in Vitest/CI (closes T3 advisory R3-002), Button (pill, "encendido" glow), AvailabilityIndicator (LED) — tests + stories | Delegated (writer) | 2+ non-trivial files | Pending |
-| T5b | Remaining atoms: Heading/Text, Price (PEN, minor units), Input/Label/FieldError, Tag/Chip — tests + stories + axe | Delegated (writer) | 2+ non-trivial files | Pending |
+| T5a | Atom infrastructure + first atoms: shadcn setup (primitives in `src/shared/ui/primitives`, `cn` util), automated axe checks in Vitest/CI (closes T3 advisory R3-002), Button (pill, "encendido" glow), AvailabilityIndicator (LED) — tests + stories | Delegated (writer) | 2+ non-trivial files | Done — `6425e22` (owner commit, partial) + `126e45d` |
+| T5b | Remaining atoms: Heading/Text, Price (PEN, minor units), Input/Label/FieldError, Tag/Chip — tests + stories + axe; Button `aria-busy` override fix (T5a review R3-001) | Delegated (writer) | 2+ non-trivial files | In progress |
 | T6 | Molecules: ProductCard, SpecList/SpecRow, FormField, QuantityStepper, SearchBar — tests + stories | Delegated (writer) | 2+ non-trivial files | Pending |
 | T7 | ADR in `docs/adr/` for the visual identity decisions (#37–#44), per #21 10.3/10.6 | Inline | One passive document | Pending |
 
@@ -81,6 +81,12 @@ The repository is empty. The F1 identity decisions are closed (Engram, project `
 
 - 2026-10-02: T4 done — owner reviewed Foundations in Storybook and approved the whole style as implemented (Engram `design/foundations-approval`). T5 split into T5a/T5b as reviewable work units (~1,000+ lines forecast for all atoms).
 
+- 2026-10-02: T3.1 done — commit `7c84b6b` (shared `contrast-pairs.ts`, radii demo measured from live styles, strict `toHexColor`; 166 tests; RED observed for malformed rgb). Assessed medium, `under_budget` → reviewed with T5a.
+- 2026-10-02: T5a done — owner commit `6425e22` ("datos de dependencias", pushed to origin mid-writer, captured partial work; not rewritten, squash merge will clean the message) + completion commit `126e45d`. Deps: class-variance-authority 0.7.1, clsx 2.1.1, tailwind-merge 3.7.0, radix-ui 1.6.7, lucide-react 1.49.0, axe-core ^4.13.0 (dev). `cn` with `extendTailwindMerge`; axe helper `src/test/a11y.ts` (color-contrast and region rules off in jsdom); shadcn `components.json` (style `radix-nova`, ui alias `@/shared/ui/primitives`, no components yet).
+  - RED → GREEN per unit (cn: 3/6 failed against plain twMerge). Writer verification: install, lint (41 files), typecheck, test (206), build, build-storybook all ok. Parent spot check: `pnpm test` 206 passed; `pnpm lint` ok.
+  - Risk tier: medium, `slice_budget_reached`. Owner granted; 1-lens reliability review (lineage `review-576339700a0232a0`) approved; acknowledged, authority burned. Reviewed boundary: `126e45d`. Advisory R3-001 (Button `aria-busy` override) → T5b; R3-002 (`toPixels` exponent form, docs-only, fails safe) recorded.
+  - Remote state: GitHub default branch is `feat/f1-tokens`; `main` and `feat/f1-scaffold` not pushed. Owner advised to push both and set `main` as default.
+
 ## Next step
 
-T3.1 (foundations docs hardening), then T5a. Next review base: `2b0aa2e`.
+T5b (remaining atoms + Button fix). Next review base: `126e45d`.
