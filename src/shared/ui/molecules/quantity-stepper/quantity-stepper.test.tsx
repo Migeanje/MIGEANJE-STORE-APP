@@ -296,13 +296,62 @@ describe("QuantityStepper", () => {
     ["a fractional min", { min: 1.5 }],
     ["a negative min", { min: -1 }],
     ["a fractional max", { max: 2.5 }],
-  ])("throws a RangeError for %s", (_label, bounds) => {
+    ["a controlled value below min", { value: 0 }],
+    ["a controlled value above max", { value: 6, max: 5 }],
+    ["a fractional controlled value", { value: 2.5 }],
+    ["a NaN controlled value", { value: Number.NaN }],
+    ["a fractional defaultValue", { defaultValue: 2.5 }],
+    ["a defaultValue below min", { defaultValue: 1, min: 2 }],
+    ["a defaultValue above max", { defaultValue: 4, max: 3 }],
+  ])("throws a RangeError for %s", (_label, props) => {
     // React logs the render error before rethrowing it; keep the output clean.
     vi.spyOn(console, "error").mockImplementation(() => {});
 
     expect(() =>
-      render(<QuantityStepper label="Cantidad" {...bounds} />),
+      render(<QuantityStepper label="Cantidad" {...props} />),
     ).toThrow(RangeError);
+  });
+
+  it("names the prop and the range in the RangeError", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    expect(() =>
+      render(<QuantityStepper label="Cantidad" value={0} max={5} />),
+    ).toThrow("QuantityStepper value must be an integer from 1 to 5, got 0");
+    expect(() =>
+      render(<QuantityStepper label="Cantidad" defaultValue={2.5} />),
+    ).toThrow(
+      "QuantityStepper defaultValue must be an integer of at least 1, got 2.5",
+    );
+  });
+
+  it("throws when a controlled value is left above a lowered max", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { rerender } = render(
+      <QuantityStepper label="Cantidad" value={3} max={5} />,
+    );
+
+    // The stock dropped but the cart did not reconcile the quantity.
+    expect(() =>
+      rerender(<QuantityStepper label="Cantidad" value={3} max={2} />),
+    ).toThrow(RangeError);
+  });
+
+  it("reads defaultValue only on mount and keeps the shown value within a lowered max", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <QuantityStepper label="Cantidad" defaultValue={3} max={5} />,
+    );
+    const { input, increment } = getParts();
+    await user.click(increment);
+    expect(input).toHaveValue("4");
+
+    // Stock drops below both the initial and the current quantity.
+    rerender(<QuantityStepper label="Cantidad" defaultValue={3} max={2} />);
+
+    expect(input).toHaveValue("2");
+    expect(input).toHaveAttribute("aria-valuenow", "2");
+    expect(increment).toBeDisabled();
   });
 
   it("has no axe violations (default, at the max, disabled)", async () => {

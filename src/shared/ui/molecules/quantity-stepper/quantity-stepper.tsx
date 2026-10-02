@@ -23,15 +23,38 @@ function assertBound(name: "min" | "max", bound: number): void {
   }
 }
 
+function assertQuantity(
+  name: "value" | "defaultValue",
+  quantity: number,
+  min: number,
+  max: number | undefined,
+): void {
+  const inRange = quantity >= min && (max === undefined || quantity <= max);
+  if (!Number.isSafeInteger(quantity) || !inRange) {
+    const range =
+      max === undefined ? `of at least ${min}` : `from ${min} to ${max}`;
+    throw new RangeError(
+      `QuantityStepper ${name} must be an integer ${range}, got ${quantity}`,
+    );
+  }
+}
+
 export type QuantityStepperProps = Omit<
   ComponentProps<"fieldset">,
   "children" | "defaultValue" | "onChange"
 > & {
   /** Accessible name of the group and the field, e.g. "Cantidad". */
   label: string;
-  /** Controlled value. Pair it with `onValueChange`. */
+  /**
+   * Controlled value, an integer within [min, max]. Pair it with
+   * `onValueChange`. Reconcile it with the stock before rendering: a value
+   * outside the range throws.
+   */
   value?: number;
-  /** Initial value when uncontrolled. Defaults to `min`. */
+  /**
+   * Initial value when uncontrolled, an integer within [min, max]. Defaults
+   * to `min`. Read once on mount, like a native input's `defaultValue`.
+   */
   defaultValue?: number;
   /** Lowest value, a non-negative integer. Defaults to 1. */
   min?: number;
@@ -48,8 +71,13 @@ export type QuantityStepperProps = Omit<
  * − / number field / + for quantities. The field is a `spinbutton`: ArrowUp
  * and ArrowDown step the value; typed digits are committed on blur or Enter,
  * clamped to [min, max]. Each button is disabled at its bound, and focus then
- * moves to the field so it never falls back to the page. Throws a RangeError
- * for invalid bounds.
+ * moves to the field so it never falls back to the page.
+ *
+ * Throws a RangeError for invalid bounds and for a `value` or `defaultValue`
+ * that is not an integer within [min, max]: those are programming errors (the
+ * cart must reconcile quantities with the stock first). What the user types is
+ * input, not an error, so it is clamped instead. If `max` later drops below the
+ * uncontrolled value, the shown value is clamped too.
  */
 export function QuantityStepper({
   label,
@@ -72,17 +100,22 @@ export function QuantityStepper({
       );
     }
   }
+  const isControlled = value !== undefined;
+  if (isControlled) assertQuantity("value", value, min, max);
   const upper = max ?? Number.MAX_SAFE_INTEGER;
   const clamp = (next: number) => Math.min(Math.max(next, min), upper);
 
   const inputRef = useRef<HTMLInputElement>(null);
-  const [uncontrolledValue, setUncontrolledValue] = useState(() =>
-    clamp(defaultValue ?? min),
-  );
+  const [uncontrolledValue, setUncontrolledValue] = useState(() => {
+    // Validated only here: later defaultValue changes are ignored anyway.
+    if (defaultValue !== undefined) {
+      assertQuantity("defaultValue", defaultValue, min, max);
+    }
+    return defaultValue ?? min;
+  });
   // Text being typed; null when the field shows the committed value.
   const [draft, setDraft] = useState<string | null>(null);
-  const isControlled = value !== undefined;
-  const current = isControlled ? value : uncontrolledValue;
+  const current = isControlled ? value : clamp(uncontrolledValue);
   const atMin = current <= min;
   const atMax = current >= upper;
 

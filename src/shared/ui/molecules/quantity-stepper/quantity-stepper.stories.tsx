@@ -22,7 +22,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'Quantity field with − and + buttons (44px, names from visually hidden text: "Disminuir cantidad", "Aumentar cantidad"). The field is a `spinbutton` named by `label`: ArrowUp/ArrowDown step the value, typed digits commit on blur or Enter clamped to [min, max], and anything that is not a digit is rejected. Each button is disabled at its bound and focus then moves to the field. Controlled (`value` + `onValueChange`) or uncontrolled (`defaultValue`).',
+          'Quantity field with − and + buttons (44px, names from visually hidden text: "Disminuir cantidad", "Aumentar cantidad"). The field is a `spinbutton` named by `label`: ArrowUp/ArrowDown step the value, typed digits commit on blur or Enter clamped to [min, max], and anything that is not a digit is rejected. Each button is disabled at its bound and focus then moves to the field. Controlled (`value` + `onValueChange`) or uncontrolled (`defaultValue`); a `value` or `defaultValue` that is not an integer within [min, max] throws a RangeError, so the cart reconciles quantities with the stock first.',
       },
     },
   },
