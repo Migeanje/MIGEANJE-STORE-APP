@@ -76,6 +76,15 @@ src/
 - Merge classes with `cn()` from `@/shared/lib/cn`. When you add a custom utility to `tokens.css` (`--text-*`, `--radius-*`, `--shadow-*`...), register it in `cn.ts` too, or tailwind-merge puts it in the wrong group (e.g. `text-display-xl` read as a color drops `text-foreground`).
 - Icons from `lucide-react` are decorative (`aria-hidden`); the text carries the meaning.
 - Every component needs behavior tests (Testing Library roles and names), an axe check with `expectNoAxeViolations` from `@/test/a11y` for every variant and state, and a story. jsdom cannot compute contrast, so axe's `color-contrast` rule is off there; `tokens.test.ts` and the Storybook a11y addon cover it.
+- Spread `{...props}` first and computed attributes after it: TypeScript accepts any `aria-*`/`data-*` JSX attribute, so omitting one from the props type does not stop a caller from overriding state such as `aria-busy`.
+- Atoms with state or event handlers that own state (e.g. `Chip`) start with `"use client"`; Storybook's Vite build warns that it ignores the directive, which is expected.
+- Keyboard tests: jsdom does not turn Enter/Space into a click. Use `uninstrumentedUserEvent` from `storybook/test` (plain `@testing-library/user-event`, no extra dependency).
+
+## Money
+
+- Amounts are integers in minor units (céntimos): S/ 129.90 is `12990`. Never do arithmetic on soles as floats.
+- Format with `formatPEN` from `@/shared/lib/money` (es-PE, PEN): `12990` -> `"S/\u00A0129.90"` (no-break space; thousands with `,`, decimals with `.`). It throws a `RangeError` for fractions, negatives, NaN/Infinity and unsafe integers. Display prices with the `Price` atom.
+- Testing Library's default normalizer turns the NBSP into a plain space: query with `getDefaultNormalizer({ collapseWhitespace: false })` and compare `textContent` to keep it exact.
 
 ## Storybook
 
