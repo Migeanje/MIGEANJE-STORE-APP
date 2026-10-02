@@ -35,7 +35,7 @@ The repository is empty. The F1 identity decisions are closed (Engram, project `
 | T4 | Owner visual review of tokens in Storybook (neutral scale, type scale, spacing) | Inline | Decision only, no writes | Done — owner approved the whole style (2026-10-02) |
 | T5a | Atom infrastructure + first atoms: shadcn setup (primitives in `src/shared/ui/primitives`, `cn` util), automated axe checks in Vitest/CI (closes T3 advisory R3-002), Button (pill, "encendido" glow), AvailabilityIndicator (LED) — tests + stories | Delegated (writer) | 2+ non-trivial files | Done — `6425e22` (owner commit, partial) + `126e45d` |
 | T5b | Remaining atoms: Heading/Text, Price (PEN, minor units), Input/Label/FieldError, Tag/Chip — tests + stories + axe; Button `aria-busy` override fix (T5a review R3-001) | Delegated (writer) | 2+ non-trivial files | Done — `69d13b3` (fix) + `af6ab2e` (atoms) |
-| T6 | Molecules: ProductCard, SpecList/SpecRow, FormField, QuantityStepper, SearchBar — tests + stories; first, T5b review suggestions (FieldError empty nodes, Heading level guard, ICU dependency guard for `formatPEN`) | Delegated (writer) | 2+ non-trivial files | In progress |
+| T6 | Molecules: ProductCard, SpecList/SpecRow, FormField, QuantityStepper, SearchBar — tests + stories; first, T5b review suggestions (FieldError empty nodes, Heading level guard, ICU dependency guard for `formatPEN`) | Delegated (writer) | 2+ non-trivial files | Done — `98b57b9`/`de40bff`/`594d2bf` (item 0, owner commits) + `726bc20`, `9986d22`, `a020339`, `2aa7a48`, `22b01f0`, `91d8b02` |
 | T7 | ADR in `docs/adr/` for the visual identity decisions (#37–#44), per #21 10.3/10.6 | Inline | One passive document | Pending |
 
 ## Acceptance criteria
@@ -93,6 +93,10 @@ The repository is empty. The F1 identity decisions are closed (Engram, project `
   - Advisories R3-001 (FieldError empty ReactNode), R3-002 (Heading runtime level guard), R3-003 (ICU dependency of `formatPEN`) → first step of T6.
   - Follow-up: Chip keyboard test imports `uninstrumentedUserEvent` from `storybook/test`; T6 adds `@testing-library/user-event` as a devDependency.
 
+- 2026-10-02: T6 done. Item 0 (isEmptyNode helper, FieldError/Heading guards, ICU guard test, `@testing-library/user-event` ^14.6.7) was committed and pushed by the owner mid-writer as `98b57b9`, `de40bff`, `594d2bf` with a leftover message from another project (owner confirmed; content correct; history not rewritten — squash merge cleans it). Follow-up lint fix `726bc20`. Molecules: FormField `9986d22` (render-prop API), SpecList `a020339`, QuantityStepper `2aa7a48`, SearchBar `22b01f0`, ProductCard `91d8b02` (+ CLAUDE.md molecule conventions).
+  - RED → GREEN per item (module-missing RED; 10 item-0 failures). Writer verification: install, lint (98 files), typecheck, test (411), build, build-storybook ok. Parent spot check: `pnpm test` 411 passed; `pnpm lint` ok.
+  - Open: no headless axe pass on molecule stories at 375/1280px; QuantityStepper has no live-region announcement on ± clicks.
+
 ## Next step
 
-T6 (molecules). Next review base: `af6ab2e`. Avoid standalone docs commits while the upstream base lags: commit tracker updates together with the next work unit.
+Native review of `af6ab2e..HEAD` (covers the owner's item-0 commits too), then T7 (ADR). Avoid standalone docs commits while the upstream base lags: commit tracker updates together with the next work unit.
