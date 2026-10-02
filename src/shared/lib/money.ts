@@ -3,6 +3,9 @@
  * Never do arithmetic on soles as floats.
  */
 
+// The symbol "S/", the no-break space and the "," / "." separators come from
+// the runtime's ICU data for es-PE (full ICU ships with Node and browsers).
+// money.test.ts guards it: "runtime ICU provides es-PE PEN formatting".
 const PEN = new Intl.NumberFormat("es-PE", {
   style: "currency",
   currency: "PEN",

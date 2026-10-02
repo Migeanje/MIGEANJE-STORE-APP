@@ -34,8 +34,8 @@ The repository is empty. The F1 identity decisions are closed (Engram, project `
 | T3.1 | Foundations docs hardening from T3 review advisories: shared contrast-pair list for test + docs (R2-001), radii demo reads tokens (R2-002), strict `toHexColor` parsing + tests (R3-001) | Delegated (writer) | 3+ files | Done — `7c84b6b` |
 | T4 | Owner visual review of tokens in Storybook (neutral scale, type scale, spacing) | Inline | Decision only, no writes | Done — owner approved the whole style (2026-10-02) |
 | T5a | Atom infrastructure + first atoms: shadcn setup (primitives in `src/shared/ui/primitives`, `cn` util), automated axe checks in Vitest/CI (closes T3 advisory R3-002), Button (pill, "encendido" glow), AvailabilityIndicator (LED) — tests + stories | Delegated (writer) | 2+ non-trivial files | Done — `6425e22` (owner commit, partial) + `126e45d` |
-| T5b | Remaining atoms: Heading/Text, Price (PEN, minor units), Input/Label/FieldError, Tag/Chip — tests + stories + axe; Button `aria-busy` override fix (T5a review R3-001) | Delegated (writer) | 2+ non-trivial files | In progress |
-| T6 | Molecules: ProductCard, SpecList/SpecRow, FormField, QuantityStepper, SearchBar — tests + stories | Delegated (writer) | 2+ non-trivial files | Pending |
+| T5b | Remaining atoms: Heading/Text, Price (PEN, minor units), Input/Label/FieldError, Tag/Chip — tests + stories + axe; Button `aria-busy` override fix (T5a review R3-001) | Delegated (writer) | 2+ non-trivial files | Done — `69d13b3` (fix) + `af6ab2e` (atoms) |
+| T6 | Molecules: ProductCard, SpecList/SpecRow, FormField, QuantityStepper, SearchBar — tests + stories; first, T5b review suggestions (FieldError empty nodes, Heading level guard, ICU dependency guard for `formatPEN`) | Delegated (writer) | 2+ non-trivial files | In progress |
 | T7 | ADR in `docs/adr/` for the visual identity decisions (#37–#44), per #21 10.3/10.6 | Inline | One passive document | Pending |
 
 ## Acceptance criteria
@@ -87,6 +87,12 @@ The repository is empty. The F1 identity decisions are closed (Engram, project `
   - Risk tier: medium, `slice_budget_reached`. Owner granted; 1-lens reliability review (lineage `review-576339700a0232a0`) approved; acknowledged, authority burned. Reviewed boundary: `126e45d`. Advisory R3-001 (Button `aria-busy` override) → T5b; R3-002 (`toPixels` exponent form, docs-only, fails safe) recorded.
   - Remote state: GitHub default branch is `feat/f1-tokens`; `main` and `feat/f1-scaffold` not pushed. Owner advised to push both and set `main` as default.
 
+- 2026-10-02: T5b done — `69d13b3` (Button `aria-busy` fix, RED observed) and `af6ab2e` (Heading, Text, Price + `formatPEN` from integer minor units with `RangeError` guards, Input, Label, FieldError, Tag, Chip). ~1,945 lines across 34 files (9 atoms with tests and stories).
+  - Writer verification: lint (75 files), typecheck, test (311), build, build-storybook ok. Parent spot check: `pnpm test` 311 passed; `pnpm lint` ok.
+  - Review: the owner's stop hook uses the pushed upstream `6425e22` as base, so the unpushed range `6425e22..af6ab2e` (incl. `126e45d`, `fbbb762`, T5b) was reviewed as one candidate. A first START attempt failed `invalid_request` (`not_started`) because the T5b writer had untracked files; retried on a clean tree. Owner granted; 1-lens reliability review (lineage `review-1396eb788ae77309`) approved; acknowledged, authority burned. Reviewed boundary: `af6ab2e`.
+  - Advisories R3-001 (FieldError empty ReactNode), R3-002 (Heading runtime level guard), R3-003 (ICU dependency of `formatPEN`) → first step of T6.
+  - Follow-up: Chip keyboard test imports `uninstrumentedUserEvent` from `storybook/test`; T6 adds `@testing-library/user-event` as a devDependency.
+
 ## Next step
 
-T5b (remaining atoms + Button fix). Next review base: `126e45d`.
+T6 (molecules). Next review base: `af6ab2e`. Avoid standalone docs commits while the upstream base lags: commit tracker updates together with the next work unit.

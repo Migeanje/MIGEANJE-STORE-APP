@@ -1,8 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+// jsdom alone does not turn Enter/Space into a click; user-event does.
+import userEvent from "@testing-library/user-event";
 import { useState } from "react";
-// Plain @testing-library/user-event, re-exported by Storybook (already a dev
-// dependency): jsdom alone does not turn Enter/Space into a click.
-import { uninstrumentedUserEvent as userEvent } from "storybook/test";
 import { describe, expect, it, vi } from "vitest";
 import { expectNoAxeViolations } from "@/test/a11y";
 import { Chip } from "./chip";

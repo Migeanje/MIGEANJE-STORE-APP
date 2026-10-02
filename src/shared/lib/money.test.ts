@@ -4,6 +4,30 @@ import { assertMinorUnits, formatPEN } from "./money";
 // es-PE puts a no-break space (U+00A0) between "S/" and the amount.
 const NBSP = "\u00A0";
 
+describe("runtime ICU", () => {
+  // formatPEN delegates the symbol, spacing and separators to Intl. A runtime
+  // with reduced ICU data (e.g. Node built with small-icu) would fall back to
+  // another locale and every price would change: this test names the cause.
+  it("runtime ICU provides es-PE PEN formatting", () => {
+    expect(Intl.NumberFormat.supportedLocalesOf(["es-PE"])).toEqual(["es-PE"]);
+
+    const parts = new Intl.NumberFormat("es-PE", {
+      style: "currency",
+      currency: "PEN",
+    }).formatToParts(1234.5);
+    const partOf = (type: Intl.NumberFormatPartTypes) =>
+      parts
+        .filter((part) => part.type === type)
+        .map((part) => part.value)
+        .join("");
+
+    expect(partOf("currency")).toBe("S/");
+    expect(partOf("literal")).toBe(NBSP);
+    expect(partOf("group")).toBe(",");
+    expect(partOf("decimal")).toBe(".");
+  });
+});
+
 describe("formatPEN", () => {
   it.each([
     [0, `S/${NBSP}0.00`],

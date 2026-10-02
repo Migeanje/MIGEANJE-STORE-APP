@@ -1,6 +1,7 @@
 import { CircleAlert } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 import { cn } from "@/shared/lib/cn";
+import { isEmptyNode } from "@/shared/lib/react-node";
 
 export type FieldErrorProps = Omit<ComponentProps<"p">, "id" | "children"> & {
   /** Required: the field points at it with `aria-describedby`. */
@@ -11,8 +12,9 @@ export type FieldErrorProps = Omit<ComponentProps<"p">, "id" | "children"> & {
 
 /**
  * Error message for one form field, in `destructive` with a decorative icon.
- * Renders nothing when there is no message. It does not announce itself: the
- * FormField molecule wires `aria-invalid` and `aria-describedby`.
+ * Renders nothing when there is no message (see `isEmptyNode`). It does not
+ * announce itself: the FormField molecule wires `aria-invalid` and
+ * `aria-describedby`, using the same emptiness check.
  */
 export function FieldError({
   id,
@@ -20,14 +22,7 @@ export function FieldError({
   children,
   ...props
 }: FieldErrorProps) {
-  if (
-    children === undefined ||
-    children === null ||
-    children === false ||
-    children === ""
-  ) {
-    return null;
-  }
+  if (isEmptyNode(children)) return null;
 
   return (
     <p

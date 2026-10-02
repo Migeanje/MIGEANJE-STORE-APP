@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import { createElement, Fragment, type ReactNode } from "react";
 import { describe, expect, it } from "vitest";
 import { expectNoAxeViolations } from "@/test/a11y";
 import { FieldError } from "./field-error";
@@ -24,17 +25,35 @@ describe("FieldError", () => {
     expect(error.textContent).toBe(MESSAGE);
   });
 
-  it.each([
+  it.each<[string, ReactNode]>([
     ["no children", undefined],
     ["null", null],
     ["false", false],
+    ["true", true],
     ["an empty string", ""],
+    ["an empty array", []],
+    ["an array of only empty values", [null, false, "", undefined]],
+    ["nested empty arrays", [[], [null]]],
+    ["an empty fragment", createElement(Fragment)],
   ])("renders nothing with %s", (_label, message) => {
     const { container } = render(
       <FieldError id="email-error">{message}</FieldError>,
     );
 
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it("renders a message built from several nodes", () => {
+    render(
+      <FieldError id="email-error">
+        {[null, "Ingresa un correo válido."]}
+      </FieldError>,
+    );
+
+    expect(screen.getByText("Ingresa un correo válido.")).toHaveAttribute(
+      "id",
+      "email-error",
+    );
   });
 
   it("forwards native props and merges className", () => {

@@ -1,12 +1,16 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { expectNoAxeViolations } from "@/test/a11y";
-import { Heading } from "./heading";
+import { Heading, type HeadingLevel } from "./heading";
 
 const LEVELS = [1, 2, 3, 4, 5, 6] as const;
 const SIZES = ["display-xl", "display-l", "title"] as const;
 
 describe("Heading", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it.each(LEVELS)("renders level %i as an h%i heading", (level) => {
     render(<Heading level={level}>Cargadores GaN</Heading>);
 
@@ -59,6 +63,26 @@ describe("Heading", () => {
     expect(heading).toHaveAttribute("id", "destacados");
     expect(heading).toHaveClass("text-muted-foreground", "text-title");
     expect(heading).not.toHaveClass("text-foreground");
+  });
+
+  it.each([
+    0,
+    7,
+    -1,
+    2.5,
+    Number.NaN,
+  ])("throws a RangeError naming the allowed range for level %s", (level) => {
+    // React logs the render error before rethrowing it; keep the output clean.
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    // Untyped data (CMS, JSON) can reach the component with any number.
+    const renderHeading = () =>
+      render(<Heading level={level as HeadingLevel}>Cargadores</Heading>);
+
+    expect(renderHeading).toThrow(RangeError);
+    expect(renderHeading).toThrow(
+      `Heading level must be an integer from 1 to 6, got ${level}`,
+    );
   });
 
   it("has no axe violations at every level and size", async () => {

@@ -38,8 +38,17 @@ export type HeadingProps = ComponentProps<"h1"> & {
   size?: HeadingSize;
 };
 
-/** Geist Sans 500 heading whose outline level and visual size are decoupled. */
+/**
+ * Geist Sans 500 heading whose outline level and visual size are decoupled.
+ * Throws a RangeError for a level outside 1–6 (e.g. from untyped data) rather
+ * than clamping it, which would silently break the document outline.
+ */
 export function Heading({ level, size, className, ...props }: HeadingProps) {
+  if (!Number.isInteger(level) || level < 1 || level > 6) {
+    throw new RangeError(
+      `Heading level must be an integer from 1 to 6, got ${level}`,
+    );
+  }
   const Component = HEADING_TAGS[level];
   return (
     <Component
