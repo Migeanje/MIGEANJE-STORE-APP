@@ -29,10 +29,11 @@ The repository is empty. The F1 identity decisions are closed (Engram, project `
 |---|---|---|---|---|
 | T1 | Scaffold: Next.js (latest stable, App Router, TS strict, `src/`), pnpm via corepack, Biome, `.nvmrc` (Node 24 LTS), Vitest + Testing Library, folder skeleton per #15, `.atl/` in `.gitignore`, repo `CLAUDE.md` with conventions (#21 10.4), GitHub Actions CI (lint, typecheck, test, build) | Delegated (writer) | Generator output + 2+ non-trivial config files | Done — `37f0d8b` |
 | T2 | Tokens: Tailwind v4 `@theme` (semantic dark colors, Geist Sans/Mono via `next/font`, type scale, 4px spacing, radii, motion + reduced-motion base) + WCAG contrast tests on token pairs | Delegated (writer) | 2+ non-trivial files | Done — `b9f361e` |
-| T2.1 | Token hardening from T2 review advisories: self-hosted `geist` fonts (R3-001), float-safe asserts (R3-002), 3-digit hex green guard (R3-003), radii test (R3-004) | Delegated (writer) | 3+ files incl. dependency change | In progress |
-| T3 | Storybook (latest, Next.js framework) + a11y addon + token docs (Colors, Typography, Spacing, Radii, Motion) | Delegated (writer) | 2+ non-trivial files | Pending |
-| T4 | Owner visual review of tokens in Storybook (neutral scale, type scale, spacing) | Inline | Decision only, no writes | Pending |
-| T5 | Atoms: Button (pill, "encendido" glow), AvailabilityIndicator (LED), Heading/Text, Price (PEN), Input/Label/FieldError, Tag/Chip — tests + stories | Delegated (writer) | 2+ non-trivial files | Pending |
+| T2.1 | Token hardening from T2 review advisories: self-hosted `geist` fonts (R3-001), float-safe asserts (R3-002), 3-digit hex green guard (R3-003), radii test (R3-004) | Delegated (writer) | 3+ files incl. dependency change | Done — `e59e884` |
+| T3 | Storybook (latest, Next.js framework) + a11y addon + token docs (Colors, Typography, Spacing, Radii, Motion) | Delegated (writer) | 2+ non-trivial files | Done — `2b0aa2e` |
+| T3.1 | Foundations docs hardening from T3 review advisories: shared contrast-pair list for test + docs (R2-001), radii demo reads tokens (R2-002), strict `toHexColor` parsing + tests (R3-001) | Delegated (writer) | 3+ files | Pending |
+| T4 | Owner visual review of tokens in Storybook (neutral scale, type scale, spacing) | Inline | Decision only, no writes | In progress |
+| T5 | Atoms: Button (pill, "encendido" glow), AvailabilityIndicator (LED), Heading/Text, Price (PEN), Input/Label/FieldError, Tag/Chip — tests + stories + automated axe checks in CI (closes T3 advisory R3-002) | Delegated (writer) | 2+ non-trivial files | Pending |
 | T6 | Molecules: ProductCard, SpecList/SpecRow, FormField, QuantityStepper, SearchBar — tests + stories | Delegated (writer) | 2+ non-trivial files | Pending |
 | T7 | ADR in `docs/adr/` for the visual identity decisions (#37–#44), per #21 10.3/10.6 | Inline | One passive document | Pending |
 
@@ -71,6 +72,12 @@ The repository is empty. The F1 identity decisions are closed (Engram, project `
   - Writer verification: lint, typecheck, test (120), build all ok. Parent spot check: `pnpm test` 120 passed; `pnpm lint` ok.
   - Risk tier: medium (`executable_change` CLAUDE.md), review due (`slice_budget_reached`). Owner granted; 1-lens native review (reliability, lineage `review-ae92b31e8c88a240`) approved; acknowledged, authority burned. Reviewed boundary: `b9f361e`. Advisories R3-001..R3-004 → T2.1.
 
+- 2026-10-02: T2.1 done — commit `e59e884` (geist 1.7.2 self-hosted via `next/font/local`, no Google Fonts at build; 121 tests; RED for 3-digit green guard observed). Assessed medium, `under_budget` → pending in slice, reviewed with T3.
+- 2026-10-02: T3 done — commit `2b0aa2e` (Storybook 10.6.1 `@storybook/nextjs-vite`, addon-a11y, addon-docs; 8 stories, 5 docs pages; CI builds Storybook; `esbuild: false` in `allowBuilds`; Storybook-only Geist alias in `.storybook/geist-fonts.ts`). ~1,240 authored lines (mostly docs stories; over the advisory heuristic, not trimmed).
+  - Writer verification: install, lint (27 files), typecheck, test (136), build, build-storybook all ok; headless axe 0 violations on 8 stories at 1280px and 375px. Parent spot check: `pnpm build-storybook` ok; `pnpm lint` ok.
+  - Risk tier: high (`shell_source` ci.yml). Owner granted; 4-lens native review (lineage `review-b95b070244bc90bb`) approved; acknowledged, authority burned. Reviewed boundary: `2b0aa2e`.
+  - Advisories → T3.1: R2-001, R2-002, R3-001. R3-002 (a11y only checked by hand; CI does not run axe) → T5 adds automated axe tests per component. Minor suggestions (R2-003, R2-004, R2-005, R3-003, R3-004) recorded, not scheduled.
+
 ## Next step
 
-Finish T2.1 (token hardening), then T3 (Storybook). Next review base: `b9f361e`.
+Owner visual review in Storybook (T4, `pnpm storybook`). Then T3.1, T5. Next review base: `2b0aa2e`.
