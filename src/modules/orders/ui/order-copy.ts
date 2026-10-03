@@ -51,14 +51,24 @@ export const RECEIPT_TYPE_LABELS = {
 } as const;
 
 /**
- * Help on the tracking page. No contact channel (email, WhatsApp) is defined
- * yet: add it here when it exists.
+ * Help on the tracking page. With an order on screen, the Libro de
+ * Reclamaciones link carries its number (`?pedido=`, prefilled there). No
+ * contact channel (email, WhatsApp) is defined yet: add it here when it
+ * exists.
  */
-export const TRACKING_HELP_LINKS = [
-  { href: "/libro-de-reclamaciones", label: "Libro de Reclamaciones" },
-  { href: "/envios-y-devoluciones", label: "Envíos y devoluciones" },
-  { href: "/garantias", label: "Garantías" },
-] as const;
+export function trackingHelpLinks(orderNumber?: string) {
+  const book = "/libro-de-reclamaciones";
+  return [
+    {
+      href: orderNumber
+        ? `${book}?pedido=${encodeURIComponent(orderNumber)}`
+        : book,
+      label: "Libro de Reclamaciones",
+    },
+    { href: "/envios-y-devoluciones", label: "Envíos y devoluciones" },
+    { href: "/garantias", label: "Garantías" },
+  ];
+}
 
 export const PAYMENT_FAILED_TITLE = "No pudimos procesar el pago";
 

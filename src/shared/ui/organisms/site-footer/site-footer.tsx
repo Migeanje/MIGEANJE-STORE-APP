@@ -78,7 +78,7 @@ export function SiteFooter({
   return (
     <footer
       {...props}
-      className={cn("border-t border-border bg-card", className)}
+      className={cn("border-t border-border bg-card print:hidden", className)}
     >
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:grid-cols-3 sm:px-8 lg:grid-cols-[2fr_1fr_1fr_1fr]">
         <div className="flex flex-col items-start gap-4 sm:col-span-3 lg:col-span-1">

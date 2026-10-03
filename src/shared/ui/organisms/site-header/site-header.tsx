@@ -119,7 +119,7 @@ export function SiteHeader({
   } as const;
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur-md">
+    <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur-md print:hidden">
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-4 sm:px-8 lg:gap-8">
         <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
           <SheetTrigger asChild>

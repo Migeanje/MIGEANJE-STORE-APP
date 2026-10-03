@@ -81,6 +81,20 @@ describe("OrderTrackingContainer", () => {
     expect(screen.queryByRole("textbox")).toBeNull();
   });
 
+  it("links the Libro de Reclamaciones with the order number when one is shown", async () => {
+    const { unmount } = render(await OrderTrackingContainer({}));
+    expect(
+      screen.getByRole("link", { name: "Libro de Reclamaciones" }),
+    ).toHaveAttribute("href", "/libro-de-reclamaciones");
+    unmount();
+
+    access.value = { number: order.number, accessToken: ACCESS_TOKEN };
+    render(await OrderTrackingContainer({}));
+    expect(
+      screen.getByRole("link", { name: "Libro de Reclamaciones" }),
+    ).toHaveAttribute("href", "/libro-de-reclamaciones?pedido=MG-2026-626262");
+  });
+
   it("follows ?numero= of the same order, and asks again for another one", async () => {
     access.value = { number: order.number, accessToken: ACCESS_TOKEN };
     const { unmount } = render(

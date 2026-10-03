@@ -51,7 +51,7 @@ src/
   shared/ui/           atomic design: atoms, molecules, organisms, templates
 ```
 
-- Contexts: `catalog`, `cart`, `checkout`, `account`, `orders`, `editorial`, `procurement-status`.
+- Contexts: `catalog`, `cart`, `checkout`, `account`, `orders`, `complaints`, `editorial`, `procurement-status`.
 - `DATA_SOURCE=mock|medusa` selects the infrastructure adapters.
 - Routes are in Spanish: `/productos/[slug]`, `/categorias/[slug]`, `/marcas/[slug]`.
 - Create module folders only when they get their first file (git does not track empty folders).
@@ -139,6 +139,15 @@ src/
 - Shared UI: organism `OrderStatusTimeline` (LEDs: done filled amber, current glowing + "Estado actual" + `aria-current="step"`, pending `led-off` ring; throws a RangeError unless done → one current → pending) and template `OrderTracking` (lookup slot or order view, help links). Dates are es-PE in Lima ("2 oct. 2026, 10:00 a. m.").
 - Demo orders (`DATA_SOURCE=mock` only, seeded by the composition root from `infrastructure/fixtures/demo-orders.ts`, dated relative to server start; the page shows a "Datos de demostración" hint): email `demo@migeanje.pe` with `MG-2026-480315` (en importación, Arequipa), `MG-2026-275904` (en camino, Lima), `MG-2026-913628` (entregado, Callao). A test keeps their lines equal to the catalog offers.
 
+## Libro de Reclamaciones
+
+- Legal basis (checked 2026-10-03, Engram `legal/libro-de-reclamaciones`; every legal text is DRAFT pending a lawyer): Ley 29571 arts. 24.1 (Ley 31435: answer within 15 business days, NOT extendable), 150–151 (Ley 32495: e-commerce book + permanent visible link, the footer's "Libro de Reclamaciones" on every page); Reglamento D.S. 011-2011-PCM as amended (art. 4-B: printable sheet + automatic email copy with filing date and time; Anexo I of D.S. 101-2022-PCM: fields, reclamo/queja definitions and the two notes, quoted verbatim in `complaints/ui/complaint-copy.ts`).
+- `src/modules/complaints`: `domain/complaint.ts` (Zod `complaintSheetSchema`: number `000000001-2026` = Anexo I's 9-digit correlative per year in Lima + year; `responseDueDate` = 15 business days after the Lima date, holidays not modeled; provider snapshot; consumer with DNI/CE, address + ubigeo, optional phone, guardian for a minor; good `producto|servicio`, optional order number (orders format), amount in céntimos and description; `reclamo|queja`, detail, optional pedido; `responseChannel` `email|carta`; `declarationAccepted: true`; `copySentAt`), `application/` (`ComplaintRepository.file` numbers and stores in one step, so a failure leaves no gap; `ComplaintNotifier`; `fileComplaint`; `findComplaintWithAccessToken`), `infrastructure/` (in-memory book and mock notifier on `globalThis`, DEV ONLY: the mock outbox logs `complaint_copy_sent` with number, kind and email domain only), `ui/`.
+- Required from the consumer: only what makes a claim "filed" (name, document, address, email, detail) plus the reclamo/queja choice and the declaration; the rest of the Hoja is optional so the book never refuses a claim the law accepts.
+- The provider's identity comes from `src/shared/config/business.ts` (`null` = "Por definir"; fill `legalName`, `ruc`, `address` before launch: a virtual provider needs a RUC).
+- `/libro-de-reclamaciones` (`ComplaintBookContainer`): same form pattern as checkout (`useCheckoutForm`, server action `fileComplaintAction`, no-JS ubigeo refresh, guardian fields revealed with `group-has-[#hoja-isMinor:checked]:flex`). `?pedido=` prefills only a well-formed order number; the tracking page passes it (`trackingHelpLinks(order.number)`).
+- After filing: cookie `mg_complaint` (`<number>.<accessToken>`, httpOnly, one hour) and redirect to `/libro-de-reclamaciones/constancia/[number]` (`noindex`). Anyone else gets the same neutral "No podemos mostrar esta constancia". A failed copy keeps the sheet filed, logs `complaint_copy_failed` (number + error only) and the constancia says so.
+
 ## Design tokens
 
 - All tokens live in `src/shared/ui/tokens/tokens.css` (imported by `src/app/globals.css`).
@@ -147,6 +156,7 @@ src/
 - Tailwind's default palette and radii are reset: only our tokens exist (`rounded-sm|md|lg|pill|full`, `text-display-xl|display-l|title|body|body-sm|caption`). Spacing keeps Tailwind's 4px scale. Motion: `duration-(--duration-fast|base|slow|story)`, `ease-out`, `ease-in-out`.
 - `rounded-full` is 50% (circles for square elements like the LED dot and avatars); use `rounded-pill` for buttons and any non-square pill shape.
 - Dark-only MVP. A light theme only redefines the `:root` values; components never change.
+- Print theme: `@media print` in `tokens.css` redefines `:root` to ink on paper (`--paper`, `--ink`, `--ink-muted`; pairs in `PRINT_PAIRS`). Header and footer are `print:hidden`; hide on-screen actions with `print:hidden` too.
 - No raw hex (or other color literals) in components. No green in UI tokens; no amber/yellow warnings.
 - `tokens.test.ts` enforces WCAG 2.2 AA contrast for every allowed pair, the no-green rule and the shadcn mapping. It must stay green.
 - The allowed pairs and thresholds live in `src/shared/ui/tokens/contrast-pairs.ts`, shared by `tokens.test.ts` and the Colors docs: add new pairs there when you add tokens. If a shadcn alias gets its own value, remove it from `ALIAS_SOURCES` there.
@@ -166,6 +176,7 @@ src/
 - Molecules (`src/shared/ui/molecules/<name>/`, same four files) compose atoms; never re-implement an atom's styles.
 - Stateful components support controlled (`value` + `onValueChange`) and uncontrolled (`defaultValue`, read once on mount) modes. Props outside their documented domain (bounds, a controlled `value`, a `defaultValue`) throw a `RangeError`; what the user types is input, so it is clamped, never thrown.
 - Form fields: wrap controls in `FormField`. Its `children` is a render prop that receives the wired props (`id`, `aria-describedby`, `aria-invalid`, `required`/`aria-required`): `{(control) => <Input {...control} type="email" />}`; without children it renders an `Input`. Decide whether an optional slot (error, hint) exists with `isEmptyNode` from `@/shared/lib/react-node`, the same check `FieldError` uses.
+- Long forms: `FormSection` (numbered region with an h2), `RadioCards` (radios as cards with a description each, ids `${idPrefix}-${value}`), `Textarea` (atom), `DescriptionList` for read-only labelled values, `PrintButton` (needs JavaScript; shows a hint without it).
 - Icon-only buttons get their name from visually hidden text (`<span className="sr-only">Buscar</span>` plus a decorative `leadingIcon`), not `aria-label`.
 - Clickable cards (`ProductCard`) use the stretched-link pattern: one link on the title with `after:absolute after:inset-0` inside a `relative` card, no other interactive elements, and the focus ring on the card via `has-focus-visible:`.
 - Interaction tests: jsdom does not turn Enter/Space into a click. Use `@testing-library/user-event` (`userEvent.setup()`) for keyboard, typing and pointer flows; `fireEvent` only for single synthetic events.

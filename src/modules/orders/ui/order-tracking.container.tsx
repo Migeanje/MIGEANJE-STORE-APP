@@ -15,7 +15,7 @@ import { DemoOrdersHint } from "./demo-orders-hint";
 import {
   ORDER_STATUS_LABELS,
   TRACKING_COPY,
-  TRACKING_HELP_LINKS,
+  trackingHelpLinks,
 } from "./order-copy";
 import { orderTrackingHref } from "./order-paths";
 import { OrderTrackingForm } from "./order-tracking-form";
@@ -79,7 +79,7 @@ export async function OrderTrackingContainer({ numero }: { numero?: string }) {
         intro={TRACKING_COPY.intro}
         order={orderTrackingView(order)}
         orderActions={trackAnotherOrder()}
-        helpLinks={TRACKING_HELP_LINKS}
+        helpLinks={trackingHelpLinks(order.number)}
       />
     );
   }
@@ -93,7 +93,7 @@ export async function OrderTrackingContainer({ numero }: { numero?: string }) {
         />
       }
       lookupAside={demoHint()}
-      helpLinks={TRACKING_HELP_LINKS}
+      helpLinks={trackingHelpLinks()}
     />
   );
 }

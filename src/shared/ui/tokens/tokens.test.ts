@@ -216,4 +216,24 @@ describe("design tokens", () => {
     expect(reduced).toMatch(/animation-duration:\s*0\.01ms\s*!important/);
     expect(reduced).toMatch(/scroll-behavior:\s*auto\s*!important/);
   });
+
+  it("prints ink on paper by only redefining :root values", () => {
+    const print = parseCustomProperties(
+      extractBlock(extractBlock(css, /@media\s+print\s*/), /:root\s*/),
+    );
+
+    expect(Object.fromEntries(print)).toMatchObject({
+      "--background": "var(--paper)",
+      "--card": "var(--paper)",
+      "--surface-raised": "var(--paper)",
+      "--foreground": "var(--ink)",
+      "--muted-foreground": "var(--ink-muted)",
+      "--primary": "var(--ink)",
+      "--primary-foreground": "var(--paper)",
+    });
+    // Every print value points at a token: colors still live in :root only.
+    for (const value of print.values()) {
+      expect(value).toMatch(/^var\(--[\w-]+\)$/);
+    }
+  });
 });

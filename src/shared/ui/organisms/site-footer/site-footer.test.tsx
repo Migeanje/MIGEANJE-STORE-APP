@@ -22,6 +22,12 @@ describe("SiteFooter", () => {
     expect(screen.getByRole("contentinfo")).toBeInTheDocument();
   });
 
+  it("stays off paper (printed pages such as the complaint constancia)", () => {
+    render(<SiteFooter categories={CATEGORIES} />);
+
+    expect(screen.getByRole("contentinfo")).toHaveClass("print:hidden");
+  });
+
   it("lists the categories under Tienda", () => {
     render(<SiteFooter categories={CATEGORIES} />);
 

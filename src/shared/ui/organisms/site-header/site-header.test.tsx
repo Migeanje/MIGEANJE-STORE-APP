@@ -49,6 +49,12 @@ describe("SiteHeader", () => {
     ).toHaveAttribute("href", "/");
   });
 
+  it("stays off paper (printed pages such as the complaint constancia)", () => {
+    render(<SiteHeader categories={CATEGORIES} />);
+
+    expect(screen.getByRole("banner")).toHaveClass("print:hidden");
+  });
+
   it("lists the categories in a labelled navigation", () => {
     render(<SiteHeader categories={CATEGORIES} />);
 
