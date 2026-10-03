@@ -4,11 +4,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { expectNoAxeViolations } from "@/test/a11y";
 import { SiteHeader } from "./site-header";
 
-const navigation = vi.hoisted(() => ({ pathname: "/", push: vi.fn() }));
+const navigation = vi.hoisted(() => ({
+  pathname: "/",
+  search: "",
+  push: vi.fn(),
+}));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => navigation.pathname,
   useRouter: () => ({ push: navigation.push }),
+  useSearchParams: () => new URLSearchParams(navigation.search),
 }));
 
 const CATEGORIES = [
@@ -31,6 +36,7 @@ function preventNextNavigation() {
 describe("SiteHeader", () => {
   beforeEach(() => {
     navigation.pathname = "/";
+    navigation.search = "";
     navigation.push.mockClear();
   });
 
@@ -145,6 +151,56 @@ describe("SiteHeader", () => {
     await user.type(within(form).getByRole("searchbox"), "cargador GaN{Enter}");
 
     expect(navigation.push).toHaveBeenCalledWith("/buscar?q=cargador+GaN");
+  });
+
+  it("shows the current query on the search page", () => {
+    navigation.pathname = "/buscar";
+    navigation.search = "q=power+bank";
+    render(<SiteHeader categories={CATEGORIES} />);
+
+    expect(screen.getByRole("searchbox")).toHaveValue("power bank");
+  });
+
+  it("keeps the search empty on other pages", () => {
+    navigation.pathname = "/categorias/cables";
+    navigation.search = "q=cable";
+    render(<SiteHeader categories={CATEGORIES} />);
+
+    expect(screen.getByRole("searchbox")).toHaveValue("");
+  });
+
+  it("follows ?q= when the URL changes, and keeps your typing until then", async () => {
+    const user = userEvent.setup();
+    navigation.pathname = "/buscar";
+    navigation.search = "q=cable";
+    const { rerender } = render(<SiteHeader categories={CATEGORIES} />);
+    const searchbox = screen.getByRole("searchbox");
+
+    await user.type(searchbox, " usb");
+    rerender(<SiteHeader categories={CATEGORIES} />);
+    expect(searchbox).toHaveValue("cable usb");
+
+    navigation.search = "q=cargador";
+    rerender(<SiteHeader categories={CATEGORIES} />);
+    expect(screen.getByRole("searchbox")).toHaveValue("cargador");
+
+    navigation.pathname = "/";
+    navigation.search = "";
+    rerender(<SiteHeader categories={CATEGORIES} />);
+    expect(screen.getByRole("searchbox")).toHaveValue("");
+  });
+
+  it("shows the current query in the mobile menu too", async () => {
+    const user = userEvent.setup();
+    navigation.pathname = "/buscar";
+    navigation.search = "q=hub";
+    render(<SiteHeader categories={CATEGORIES} />);
+
+    await user.click(getMenuButton());
+
+    expect(
+      within(screen.getByRole("dialog")).getByRole("searchbox"),
+    ).toHaveValue("hub");
   });
 
   it("opens the mobile menu from the keyboard, and Escape closes it and returns focus", async () => {

@@ -10,6 +10,7 @@ vi.mock("server-only", () => ({}));
 vi.mock("next/navigation", () => ({
   usePathname: () => "/",
   useRouter: () => ({ push: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 // The containers read the default data source (DATA_SOURCE=mock).

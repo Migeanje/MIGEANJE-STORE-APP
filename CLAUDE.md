@@ -76,6 +76,18 @@ src/
 - `not-found.tsx` (404 with category shortcuts), `error.tsx` (calls `retry`, stable since Next 16.3) and `global-error.tsx` (own `<html>`, imports `globals.css` and the fonts).
 - `SiteHeader` reads the router (`usePathname` for `aria-current`, `useRouter` for search). Its search is a native GET form to `/buscar` (works before hydration) that navigates on the client once hydrated. Tests mock `next/navigation`; stories set `parameters.nextjs.appDirectory` and `navigation.pathname`.
 - Async Server Component containers are tested with `render(await Container())`; a page that embeds one mocks the container module.
+- The header search follows `?q=` on `/buscar` via `useSearchParams` inside a Suspense boundary whose fallback is the same empty native form (static pages stay prerendered). Tests that render `SiteHeader` mock `useSearchParams` too.
+- Root metadata uses a title template (`%s · Migeanje Store`): pages return only their own title.
+
+## Discovery pages
+
+- Routes: `/` (home), `/categorias/[slug]` (dynamic: reads `searchParams`), `/marcas/[slug]` (SSG), `/buscar?q=` (dynamic, `noindex`). Static params and metadata live in `catalog/ui/catalog-routes.ts`; unknown slugs call `notFound()` in the container.
+- URL boundary: `catalog/ui/catalog-url.ts` parses `searchParams` with Zod into a domain query and serializes it back canonically (`marca`, `disponibilidad=en-stock|en-importacion|agotado`, `potencia=60-140`, repeated option values, `pantalla=si`, `orden=relevancia|precio-asc|precio-desc`, `pagina`). Spec keys map to Spanish param names in `SPEC_PARAM_NAMES` (documented table there); `specParams` throws on a clash. Junk params are dropped, never thrown; the domain `sanitizeFilters` (with facets) is the last word.
+- Filters and sort are native GET forms (work without JavaScript; the no-JS range fields are `potencia-desde`/`potencia-hasta`), enhanced in `catalog/ui/category-controls.tsx` to `router.push` the canonical URL with `{ scroll: false }`. Key the uncontrolled forms by the canonical URL so they follow it after a chip is removed.
+- No-JS fallbacks use Tailwind's `noscript:` variant (`@media (scripting: none)`): the phone "Filtros" button becomes a link to `#filtros`, and the inline panel shows via `target:flex`.
+- Result counts render in `role="status"` so client-side filter changes are announced. With no section heading between the h1 and the grid, product names are h2.
+- A Server Component cannot read a non-component export of a `"use client"` module (it gets a client reference, not the value): e.g. `chipClassName` is only used from client components (`ActiveFilters`).
+- Motion: `ScrollReveal` (organism) reveals sections once on scroll under `gsap.matchMedia("(prefers-reduced-motion: no-preference)")` and never hides a section already in view; the home hero glow "warms up" with CSS `starting:` only.
 
 ## Design tokens
 

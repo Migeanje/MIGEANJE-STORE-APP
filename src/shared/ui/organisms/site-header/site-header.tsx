@@ -2,11 +2,14 @@
 
 import { Menu, ShoppingBag, User } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import { cn } from "@/shared/lib/cn";
 import { Button } from "@/shared/ui/atoms/button";
-import { SearchBar } from "@/shared/ui/molecules/search-bar";
+import {
+  SearchBar,
+  type SearchBarProps,
+} from "@/shared/ui/molecules/search-bar";
 import {
   Sheet,
   SheetContent,
@@ -43,12 +46,50 @@ function currentProps(href: string, pathname: string) {
   return href === pathname ? ({ "aria-current": "page" } as const) : {};
 }
 
+type HeaderSearchBarProps = Omit<
+  SearchBarProps,
+  "value" | "defaultValue" | "onValueChange"
+>;
+
+/**
+ * The search bar following the URL: on /buscar it shows the current `?q=`,
+ * elsewhere it is empty. What you type stays until the URL changes.
+ */
+function UrlSearchBar(props: HeaderSearchBarProps) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const urlQuery =
+    pathname === SEARCH_PATH ? (searchParams.get("q") ?? "") : "";
+  const [draft, setDraft] = useState(urlQuery);
+  const [syncedQuery, setSyncedQuery] = useState(urlQuery);
+  // Adjusting state while rendering (not in an effect) avoids a stale frame.
+  if (syncedQuery !== urlQuery) {
+    setSyncedQuery(urlQuery);
+    setDraft(urlQuery);
+  }
+  return <SearchBar {...props} value={draft} onValueChange={setDraft} />;
+}
+
+/**
+ * `useSearchParams` makes static pages render the bar on the client: the
+ * Suspense fallback is the same native form, empty, so the header is complete
+ * in the server HTML and search works before hydration.
+ */
+function HeaderSearchBar(props: HeaderSearchBarProps) {
+  return (
+    <Suspense fallback={<SearchBar {...props} />}>
+      <UrlSearchBar {...props} />
+    </Suspense>
+  );
+}
+
 /**
  * Sticky site header: wordmark, product search, account and cart links and the
  * category navigation. Below `lg` the navigation and search move into a menu
  * sheet (focus trap, Escape returns focus to the menu button). The search is a
  * native GET form to /buscar, so it works before hydration; once hydrated it
- * navigates on the client. The current page is read from the router.
+ * navigates on the client and shows the current `?q=` on /buscar. The current
+ * page and query are read from the router.
  */
 export function SiteHeader({ categories, cartCount = 0 }: SiteHeaderProps) {
   if (!Number.isSafeInteger(cartCount) || cartCount < 0) {
@@ -93,7 +134,10 @@ export function SiteHeader({ categories, cartCount = 0 }: SiteHeaderProps) {
               <SheetTitle>Menú</SheetTitle>
             </SheetHeader>
             {/* Shorter placeholder: the sheet is narrow. */}
-            <SearchBar {...searchFormProps} placeholder="Busca un producto…" />
+            <HeaderSearchBar
+              {...searchFormProps}
+              placeholder="Busca un producto…"
+            />
             <nav aria-label="Categorías">
               <ul className="flex flex-col gap-1">
                 {categories.map(({ slug, name }) => (
@@ -126,7 +170,7 @@ export function SiteHeader({ categories, cartCount = 0 }: SiteHeaderProps) {
           Migeanje Store
         </Link>
 
-        <SearchBar
+        <HeaderSearchBar
           {...searchFormProps}
           className="hidden max-w-xl flex-1 lg:flex"
         />

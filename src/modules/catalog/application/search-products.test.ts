@@ -2,7 +2,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { createInMemoryCatalogRepository } from "@/modules/catalog/infrastructure/in-memory-catalog-repository";
 import { buildTestCatalog } from "@/modules/catalog/testing/catalog-builders";
-import { MAX_QUERY_LENGTH, searchProducts } from "./search-products";
+import {
+  MAX_QUERY_LENGTH,
+  normalizeSearchQuery,
+  searchProducts,
+} from "./search-products";
 
 const repository = createInMemoryCatalogRepository(buildTestCatalog());
 
@@ -46,5 +50,26 @@ describe("searchProducts", () => {
     const result = await searchProducts(repository, "a".repeat(500));
 
     expect(result.query).toHaveLength(MAX_QUERY_LENGTH);
+  });
+});
+
+describe("normalizeSearchQuery", () => {
+  it.each([
+    ["  power   bank ", "power bank"],
+    ["\tcargador\n", "cargador"],
+    ["", ""],
+  ])("normalizes %j to %j", (raw, query) => {
+    expect(normalizeSearchQuery(raw)).toBe(query);
+  });
+
+  it("is the query searchProducts echoes", async () => {
+    const raw = `  ${"b ".repeat(80)}`;
+
+    expect((await searchProducts(repository, raw)).query).toBe(
+      normalizeSearchQuery(raw),
+    );
+    expect(normalizeSearchQuery(raw).length).toBeLessThanOrEqual(
+      MAX_QUERY_LENGTH,
+    );
   });
 });

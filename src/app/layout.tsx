@@ -5,7 +5,8 @@ import { geistMono, geistSans } from "@/shared/ui/tokens/fonts";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Migeanje Store",
+  // Pages set their own title ("Cargadores"); the template adds the store.
+  title: { default: "Migeanje Store", template: "%s · Migeanje Store" },
   description:
     "Accesorios tecnológicos premium en Perú, elegidos para que tu equipo rinda al máximo.",
 };

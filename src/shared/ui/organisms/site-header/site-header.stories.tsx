@@ -32,7 +32,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'Sticky site header on a warm surface: the "Migeanje Store" wordmark (text, no logo), product search, account and cart links (the cart is named "Carrito, N productos"; an amber badge shows the count when it is above 0) and the category navigation, where the current page gets `aria-current="page"` and a lit amber bar. Below `lg`, navigation and search move into a menu sheet (focus trap, Escape returns focus to the menu button). The search is a native GET form to `/buscar`, enhanced with client navigation.',
+          'Sticky site header on a warm surface: the "Migeanje Store" wordmark (text, no logo), product search, account and cart links (the cart is named "Carrito, N productos"; an amber badge shows the count when it is above 0) and the category navigation, where the current page gets `aria-current="page"` and a lit amber bar. Below `lg`, navigation and search move into a menu sheet (focus trap, Escape returns focus to the menu button). The search is a native GET form to `/buscar`, enhanced with client navigation; on `/buscar` it shows the current `?q=` (read with `useSearchParams` inside a Suspense boundary whose fallback is the same empty form).',
       },
     },
   },
@@ -43,6 +43,16 @@ type Story = StoryObj<typeof meta>;
 
 export const Desktop: Story = {
   name: "Desktop (current category: Cables)",
+};
+
+export const OnSearchPage: Story = {
+  name: "On the search page (follows ?q=)",
+  parameters: {
+    nextjs: {
+      appDirectory: true,
+      navigation: { pathname: "/buscar", query: { q: "cargador GaN" } },
+    },
+  },
 };
 
 export const WithCartCount: Story = {
