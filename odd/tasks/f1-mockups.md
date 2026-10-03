@@ -38,7 +38,7 @@ The design system (`f1-design-system`) is done and on `main`. F1 objectives 3 an
 | M1 | Catalog module: domain (Product, Variant, Category spec schema, Brand, Availability, ExpertReview) + Zod, `CatalogRepository` port, use cases (list/filter by category, get by slug, compare, search), mock adapter with the 19 fixtures (verify conflicting specs), `DATA_SOURCE` composition root | Delegated (writer) | 2+ non-trivial files | Done — `4124624` (partial, owner) + `de66e33` |
 | M2 | App shell: layout, header (nav, SearchBar, cart button), footer (legal links, Libro de Reclamaciones), motion providers (Lenis/GSAP on discovery only), 404/error | Delegated (writer) | 2+ non-trivial files | Done — `5399153`, `bd23170`, `b2cbbbf` (branch `feat/f1-app-shell`) |
 | M3 | Discovery: Home, Category (spec filters), Brand, Search results | Delegated (writer) | 2+ non-trivial files | Done — `fa9cdb7`, `55bbb1e`, `e441956`, `bf30562`, `31b1c49` (branch `feat/f1-discovery`) |
-| M4 | Product page (gallery, variants, specs, availability, expert review rubric, compare) + Comparator | Delegated (writer) | 2+ non-trivial files | Pending |
+| M4 | Product page (gallery, variants, specs, availability, expert review rubric, compare) + Comparator | Delegated (writer) | 2+ non-trivial files | Done — `28ba3c0`, `abdce1c`, `8860bcb` (branch `feat/f1-product`) |
 | M5 | Cart module (domain, mock adapter, server actions, cookie) + cart drawer | Delegated (writer) | 2+ non-trivial files | Pending |
 | M6 | Checkout 3 steps (contact + shipping with ubigeo, receipt boleta / factura flag off, simulated Culqi payment) + order confirmation | Delegated (writer) | 2+ non-trivial files | Pending |
 | M7 | Orders: public order status ("En importación") | Delegated (writer) | 2+ non-trivial files | Pending |
@@ -95,6 +95,19 @@ Decisions made without the owner during the overnight run, within approved desig
 - M3: "Destacados" = one in-stock product per category first; hero CTA → first category; hero, "Por qué Migeanje" and "En importación" copy marked DRAFT.
 - M3: Brand descriptions generated from data; brand groups link to the category filtered by brand. Search results `noindex`; title template `%s · Migeanje Store`.
 
+- M4: Variant URL `?variante=<sku lowercase>` (default variant has none); reading it makes the product page render per request.
+- M4: Option availability follows the choices above it; sold-out values blocked only while something else is buyable (Apple stays selectable). No color swatches yet (no color data; no literals allowed).
+- M4: Quantity limits 5 (in stock) / 2 (backorder). "Avísame" hidden without JS (note instead). "Comparar" only on the product page (keeps the stretched-link card). Opening a shared comparator URL replaces the tray.
+- M4: One schema.org offer for the selected variant (relative URLs). No `next.config.ts` change for SVG (Next serves `.svg` unoptimized). Backorder explainer, "Avísame" and cart messages marked DRAFT.
+- M4: Apple future line reuses the "Agotado" label (could become "Próximamente").
+
+## M4 evidence
+
+- RED → GREEN: 12 logic test files (31 failing tests first). Writer verification: install, lint (342 files), typecheck, test (1,070), build, build-storybook ok. Headless axe: 0 violations in 34 checks (3 product pages, 4 comparator states, tray and notify-me interactions; 375/1280px; normal/reduced motion); variant links and differences toggle work without JS.
+- Parent spot check: `pnpm test` 1,070 passed twice; `pnpm lint` ok. Risk tier: medium (`72afdf5..HEAD`, 6,391 lines). Stopped a leftover `next start` (port 3123) left by the writer.
+- Open: one writer run saw the category page container axe test fail once (not reproduced in 3 later runs; cause unknown, possibly load-related timeout); after "Vaciar" the compare bar disappears and focus falls to the body.
+- M5 extension point: `AddToCartAction = (previous, formData) => Promise<{ ok, message }>` (`useActionState`), fields `sku` and `cantidad` via `parseAddToCartForm`; route passes `addToCart={addToCartAction}` to `ProductPageContainer`.
+
 ## M3 evidence
 
 - RED → GREEN per item (13 failing advisory tests first). Writer verification: install, lint (268 files), typecheck, test (839), build, build-storybook ok. Headless axe: 0 violations on 6 pages × 375/1280px × normal/reduced motion; no horizontal scroll at 375px; filters and sort work without JS.
@@ -110,4 +123,4 @@ Decisions made without the owner during the overnight run, within approved desig
 
 ## Next step
 
-M4 (product page + comparator) on `feat/f1-product`.
+M5 (cart module + drawer) on `feat/f1-cart`.
