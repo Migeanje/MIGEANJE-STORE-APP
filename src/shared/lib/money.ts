@@ -43,3 +43,22 @@ export function toDecimalAmount(minor: number): string {
   const soles = (minor - cents) / 100 + 0;
   return `${soles}.${String(cents).padStart(2, "0")}`;
 }
+
+// What a customer types for an amount in soles: up to 9,999,999.99, with a
+// comma or a dot before the céntimos. Thousands separators are not accepted
+// ("1,299.90" is ambiguous); spaces and the "S/" symbol are ignored.
+const TYPED_SOLES = /^(\d{1,7})(?:[.,](\d{1,2}))?$/;
+
+/**
+ * An amount typed in soles as céntimos ("129.90", "129,9", "S/ 129" ->
+ * 12990, 12990, 12900), or null when it is not a plain non-negative amount
+ * with at most two decimals. Integer math only.
+ */
+export function parseSoles(input: string): number | null {
+  const compact = input.replace(/\s+/g, "").replace(/^s\//i, "");
+  const parts = TYPED_SOLES.exec(compact);
+  if (!parts) return null;
+  const soles = Number(parts[1]);
+  const cents = Number((parts[2] ?? "").padEnd(2, "0"));
+  return soles * 100 + cents;
+}

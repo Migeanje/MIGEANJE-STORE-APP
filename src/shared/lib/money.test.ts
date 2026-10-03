@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { assertMinorUnits, formatPEN, toDecimalAmount } from "./money";
+import {
+  assertMinorUnits,
+  formatPEN,
+  parseSoles,
+  toDecimalAmount,
+} from "./money";
 
 // es-PE puts a no-break space (U+00A0) between "S/" and the amount.
 const NBSP = "\u00A0";
@@ -99,5 +104,33 @@ describe("toDecimalAmount", () => {
 
   it.each([129.9, -1, Number.NaN])("throws a RangeError for %s", (minor) => {
     expect(() => toDecimalAmount(minor)).toThrow(RangeError);
+  });
+});
+
+describe("parseSoles", () => {
+  it.each([
+    ["129.90", 12990],
+    ["129,90", 12990],
+    ["129.9", 12990],
+    ["129", 12900],
+    ["0.05", 5],
+    ["S/ 129.90", 12990],
+    ["s/129", 12900],
+    [" 1 299.50 ", 129950],
+    ["9999999.99", 999999999],
+  ])("reads %j as %i céntimos", (input, minor) => {
+    expect(parseSoles(input)).toBe(minor);
+  });
+
+  it.each([
+    ["an empty string", ""],
+    ["letters", "ciento veinte"],
+    ["three decimals", "129.905"],
+    ["a negative amount", "-5"],
+    ["two separators", "1,299.90"],
+    ["more than 9,999,999.99", "10000000"],
+    ["only a symbol", "S/"],
+  ])("answers null for %s", (_label, input) => {
+    expect(parseSoles(input)).toBeNull();
   });
 });
