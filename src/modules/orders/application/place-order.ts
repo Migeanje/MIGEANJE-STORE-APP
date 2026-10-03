@@ -98,6 +98,16 @@ export type PlaceOrderError =
   | { code: "payment_declined"; reason: DeclineReason }
   | {
       /**
+       * An earlier payment of this cart was charged but its order could not
+       * be stored: it awaits reconciliation, so this cart is never charged
+       * again (nothing was charged now). `orderNumber` is the reference the
+       * customer got.
+       */
+      code: "payment_pending_reconciliation";
+      orderNumber: string;
+    }
+  | {
+      /**
        * The card WAS charged but the order could not be stored. Never invite
        * a retry: the charge is kept for reconciliation (`recorded` says
        * whether the record was written) and the customer is contacted.
@@ -194,7 +204,9 @@ function messageOf(error: unknown): string {
 
 /**
  * Pays and creates the order of a guest checkout:
- * 1. the cart must have lines and the draft must be complete (contact, a
+ * 1. the cart must have lines, must not have a charged payment awaiting
+ *    reconciliation (`payment_pending_reconciliation`: never a second
+ *    charge for the same cart) and the draft must be complete (contact, a
  *    receipt the store can issue now, the same cart);
  * 2. every line is re-priced through the catalog: when a price, availability
  *    or allowed quantity changed, the refreshed cart is saved and nothing is
@@ -222,6 +234,16 @@ export async function placeOrder(
 
   if (!cart || cart.lines.length === 0) {
     return { ok: false, error: { code: "empty_cart" } };
+  }
+  const pending = await services.reconciliations.findByCart(cart.id);
+  if (pending) {
+    return {
+      ok: false,
+      error: {
+        code: "payment_pending_reconciliation",
+        orderNumber: pending.order.number,
+      },
+    };
   }
   if (!draft?.contact || draft.cartId !== cart.id) {
     return {

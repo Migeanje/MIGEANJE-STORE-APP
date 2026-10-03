@@ -71,27 +71,31 @@ export function getDemoTracking(): DemoTracking | null {
     : null;
 }
 
-// Failed tracking lookups allowed per client address and window.
-const TRACKING_MAX_FAILURES = 10;
-const TRACKING_WINDOW_MS = 15 * 60 * 1000;
+// Failed order lookups allowed per client key and window.
+const LOOKUP_MAX_FAILURES = 10;
+const LOOKUP_WINDOW_MS = 15 * 60 * 1000;
 
-const TRACKING_ATTEMPTS = Symbol.for("migeanje-store.orders.tracking-attempts");
-type TrackingAttemptsGlobal = typeof globalThis & {
-  [TRACKING_ATTEMPTS]?: AttemptLimiter;
+const LOOKUP_ATTEMPTS = Symbol.for(
+  "migeanje-store.orders.order-lookup-attempts",
+);
+type LookupAttemptsGlobal = typeof globalThis & {
+  [LOOKUP_ATTEMPTS]?: AttemptLimiter;
 };
 
 /**
- * Failed public tracking lookups per client (10 per 15 minutes), for every
- * data source. In this process's memory: a best-effort guard; real rate
- * limiting belongs to the edge or the backend.
+ * Failed order lookups by number and email per client key (10 per 15
+ * minutes), shared by the public tracking and the confirmation unlock, for
+ * every data source. Keys come from `identifyClient` (`client-key.ts`). In
+ * this process's memory: a best-effort guard; real rate limiting belongs to
+ * the edge or the backend.
  */
-export function getTrackingAttempts(): AttemptLimiter {
-  const global = globalThis as TrackingAttemptsGlobal;
-  global[TRACKING_ATTEMPTS] ??= createAttemptLimiter({
-    maxFailures: TRACKING_MAX_FAILURES,
-    windowMs: TRACKING_WINDOW_MS,
+export function getOrderLookupAttempts(): AttemptLimiter {
+  const global = globalThis as LookupAttemptsGlobal;
+  global[LOOKUP_ATTEMPTS] ??= createAttemptLimiter({
+    maxFailures: LOOKUP_MAX_FAILURES,
+    windowMs: LOOKUP_WINDOW_MS,
   });
-  return global[TRACKING_ATTEMPTS];
+  return global[LOOKUP_ATTEMPTS];
 }
 
 // DEV ONLY, like the mock orders: approved charges whose order could not be

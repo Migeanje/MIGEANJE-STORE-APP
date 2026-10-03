@@ -14,6 +14,7 @@ import {
   getOrderRepository,
   getReconciliationLog,
 } from "@/modules/orders/infrastructure";
+import { CLIENT_ID_COOKIE } from "@/modules/orders/infrastructure/client-key";
 import { ORDER_ACCESS_COOKIE } from "@/modules/orders/infrastructure/order-access-cookie";
 import { anOrder } from "@/modules/orders/testing/order-builders";
 import {
@@ -100,9 +101,21 @@ beforeEach(() => {
   jar.clear();
   setCookie.mockClear();
   refresh.mockClear();
-  // Each test is its own client for the process-wide attempt limiter.
-  requestHeaders.set("x-forwarded-for", crypto.randomUUID());
+  for (const name of [...requestHeaders.keys()]) requestHeaders.delete(name);
+  // An empty jar: each test is a new browser (its own anonymous id) for the
+  // process-wide limiter of order lookups.
 });
+
+/** Another browser: it has not got the anonymous id of this one. */
+function anotherBrowser() {
+  jar.delete(CLIENT_ID_COOKIE);
+}
+
+const TOO_MANY_ATTEMPTS = {
+  title: "Demasiados intentos",
+  message:
+    "Por tu seguridad pausamos las consultas desde tu conexión. Espera unos minutos y vuelve a intentarlo.",
+};
 
 describe("placeOrderAction", () => {
   it("pays, stores the order, empties the cart and opens the confirmation", async () => {
@@ -266,6 +279,8 @@ describe("placeOrderAction", () => {
         message: `Recibimos tu pago, pero no pudimos terminar de registrar tu pedido. No vuelvas a pagar: revisaremos tu pago y te escribiremos a tu correo para confirmar tu pedido. Tu código de referencia es ${number}.`,
       });
       expect(state.formError?.message).not.toMatch(/inténtalo de nuevo/i);
+      // The page re-renders without "Pagar" (pending reconciliation notice).
+      expect(refresh).toHaveBeenCalledTimes(1);
 
       // One structured server event, without card or personal data.
       expect(log).toHaveBeenCalledTimes(1);
@@ -295,6 +310,48 @@ describe("placeOrderAction", () => {
       );
     } finally {
       save.mockRestore();
+      log.mockRestore();
+    }
+  });
+
+  it("never charges again after a registered payment: the next attempt is refused", async () => {
+    const { cartId, pay } = await readyToPay();
+    const orders = getOrderRepository();
+    const save = vi
+      .spyOn(orders, "save")
+      .mockRejectedValueOnce(new Error("disk full"));
+    const reserve = vi.spyOn(orders, "reserveNumber");
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      const first = await placeOrderAction(initialFormState(), form(pay));
+      const number = /MG-\d{4}-\d{6}/.exec(first.formError?.message ?? "")?.[0];
+      refresh.mockClear();
+
+      // E.g. a second tab still showing "Pagar", or the back button.
+      const second = await placeOrderAction(first, form(pay));
+
+      expect(second.formError).toEqual({
+        title: "Ya registramos un pago",
+        message: `Ya registramos un pago para este carrito y lo estamos confirmando. No vuelvas a pagar; te escribiremos a tu correo. Tu código de referencia es ${number}.`,
+      });
+      expect(refresh).toHaveBeenCalledTimes(1);
+      // Refused before reserving a number or charging.
+      expect(reserve).toHaveBeenCalledTimes(1);
+      expect(await orders.findByNumber(number as string)).toBeNull();
+      expect(
+        (await getReconciliationLog().list()).filter(
+          (entry) => entry.cartId === cartId,
+        ),
+      ).toHaveLength(1);
+      expect(setCookie).not.toHaveBeenCalledWith(
+        ORDER_ACCESS_COOKIE,
+        expect.anything(),
+        expect.anything(),
+      );
+    } finally {
+      save.mockRestore();
+      reserve.mockRestore();
       log.mockRestore();
     }
   });
@@ -375,6 +432,29 @@ describe("unlockOrderAction", () => {
       ),
     ).toEqual({ message });
     expect(jar.has(ORDER_ACCESS_COOKIE)).toBe(false);
+  });
+
+  it("pauses a client after 10 failed lookups, counted together with tracking", async () => {
+    const order = anOrder({ number: "MG-2026-555007" });
+    await getOrderRepository().save(order);
+    const wrong = form({ number: order.number, email: "otra@correo.pe" });
+    let tracking = trackingInitialState(undefined);
+    for (let failure = 0; failure < 5; failure += 1) {
+      tracking = await trackOrderAction(tracking, wrong);
+      await unlockOrderAction({ message: null }, wrong);
+    }
+
+    const right = form({ number: order.number, email: "ana@correo.pe" });
+    expect(await unlockOrderAction({ message: null }, right)).toEqual({
+      message: TOO_MANY_ATTEMPTS.message,
+    });
+    expect(jar.has(ORDER_ACCESS_COOKIE)).toBe(false);
+
+    // Another browser still opens it.
+    anotherBrowser();
+    await expect(unlockOrderAction({ message: null }, right)).rejects.toThrow(
+      `NEXT_REDIRECT:/checkout/confirmacion/${order.number}`,
+    );
   });
 });
 
@@ -458,15 +538,11 @@ describe("trackOrderAction", () => {
       form({ number: order.number, email: "ana@correo.pe" }),
     );
 
-    expect(state.formError).toEqual({
-      title: "Demasiados intentos",
-      message:
-        "Por tu seguridad pausamos las consultas desde tu conexión. Espera unos minutos y vuelve a intentarlo.",
-    });
+    expect(state.formError).toEqual(TOO_MANY_ATTEMPTS);
     expect(jar.has(ORDER_ACCESS_COOKIE)).toBe(false);
 
     // Another client still gets in.
-    requestHeaders.set("x-forwarded-for", "198.51.100.77");
+    anotherBrowser();
     await expect(
       trackOrderAction(
         state,
@@ -475,6 +551,60 @@ describe("trackOrderAction", () => {
     ).rejects.toThrow(
       "NEXT_REDIRECT:/pedidos/seguimiento?numero=MG-2026-555005",
     );
+  });
+});
+
+describe("order lookups and forged forwarding headers", () => {
+  async function failTenTimes(number: string, forwardedFor: () => string) {
+    let state = trackingInitialState(undefined);
+    for (let failure = 0; failure < 10; failure += 1) {
+      requestHeaders.set("x-forwarded-for", forwardedFor());
+      requestHeaders.set("x-real-ip", forwardedFor());
+      state = await trackOrderAction(
+        state,
+        form({ number, email: "otra@correo.pe" }),
+      );
+    }
+    return state;
+  }
+
+  it("does not reset the pause when a client changes its x-forwarded-for", async () => {
+    const order = anOrder({ number: "MG-2026-555008" });
+    await getOrderRepository().save(order);
+    const state = await failTenTimes(order.number, () =>
+      [1, 2, 3, 4].map(() => Math.floor(Math.random() * 256)).join("."),
+    );
+
+    requestHeaders.set("x-forwarded-for", "192.0.2.200");
+    const next = await trackOrderAction(
+      state,
+      form({ number: order.number, email: "ana@correo.pe" }),
+    );
+    expect(next.formError).toEqual(TOO_MANY_ATTEMPTS);
+  });
+
+  it("does not pause another client whose address the attacker forged", async () => {
+    const order = anOrder({ number: "MG-2026-555009" });
+    await getOrderRepository().save(order);
+    const victim = "198.51.100.23";
+    await failTenTimes(order.number, () => victim);
+
+    anotherBrowser();
+    requestHeaders.set("x-forwarded-for", victim);
+    await expect(
+      trackOrderAction(
+        trackingInitialState(undefined),
+        form({ number: order.number, email: "ana@correo.pe" }),
+      ),
+    ).rejects.toThrow(
+      "NEXT_REDIRECT:/pedidos/seguimiento?numero=MG-2026-555009",
+    );
+    await expect(
+      unlockOrderAction(
+        { message: null },
+        form({ number: order.number, email: "ana@correo.pe" }),
+      ),
+    ).rejects.toThrow(`NEXT_REDIRECT:/checkout/confirmacion/${order.number}`);
   });
 });
 

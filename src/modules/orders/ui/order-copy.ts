@@ -2,6 +2,7 @@
 // DRAFT: every text here is pending owner review.
 import type { LineAvailability } from "@/modules/cart/domain/cart";
 import { leadTimeLabel, productDisplayName } from "@/modules/cart/ui/cart-copy";
+import { PAYMENT_PENDING_COPY } from "@/modules/checkout/ui/checkout-copy";
 import type { CartChange } from "@/modules/orders/application/place-order";
 import type { DeclineReason } from "@/modules/orders/application/ports";
 import type { OrderStatus } from "@/modules/orders/domain/order";
@@ -86,6 +87,17 @@ export function paymentRegisteredError(reference: string) {
   return {
     title: "Registramos tu pago",
     message: `Recibimos tu pago, pero no pudimos terminar de registrar tu pedido. No vuelvas a pagar: revisaremos tu pago y te escribiremos a tu correo para confirmar tu pedido. Tu código de referencia es ${reference}.`,
+  };
+}
+
+/**
+ * Another attempt to pay a cart whose payment awaits confirmation: nothing
+ * was charged now. Same words as the payment step's notice.
+ */
+export function paymentPendingError(reference: string) {
+  return {
+    title: PAYMENT_PENDING_COPY.title,
+    message: `${PAYMENT_PENDING_COPY.message} Tu código de referencia es ${reference}.`,
   };
 }
 

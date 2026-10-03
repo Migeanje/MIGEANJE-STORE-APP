@@ -5,10 +5,10 @@ import { currentStatus } from "@/modules/orders/domain/order";
 import { anOrder } from "@/modules/orders/testing/order-builders";
 import {
   getDemoTracking,
+  getOrderLookupAttempts,
   getOrderRepository,
   getPaymentGateway,
   getReconciliationLog,
-  getTrackingAttempts,
 } from "./index";
 
 vi.mock("server-only", () => ({}));
@@ -65,9 +65,9 @@ describe("orders composition root", () => {
     expect(getReconciliationLog()).toBe(log);
   });
 
-  it("keeps one process-wide limiter of failed tracking lookups", () => {
-    const attempts = getTrackingAttempts();
-    expect(getTrackingAttempts()).toBe(attempts);
+  it("keeps one process-wide limiter of failed order lookups (tracking and confirmation)", () => {
+    const attempts = getOrderLookupAttempts();
+    expect(getOrderLookupAttempts()).toBe(attempts);
 
     for (let failure = 0; failure < 9; failure += 1) {
       attempts.recordFailure("192.0.2.10");

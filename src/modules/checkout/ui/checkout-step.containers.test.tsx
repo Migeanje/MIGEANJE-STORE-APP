@@ -20,7 +20,7 @@ import {
   ReceiptStepContainer,
   redirectToPendingStep,
 } from "./checkout-step.containers";
-import type { PayAction } from "./pay-action";
+import type { PayAction, PendingPaymentLookup } from "./pay-action";
 
 vi.mock("server-only", () => ({}));
 
@@ -131,17 +131,20 @@ function steps() {
 
 describe("PaymentStepContainer", () => {
   const pay = vi.fn<PayAction>();
+  const noPendingPayment = vi.fn<PendingPaymentLookup>(async () => null);
 
   it("asks for the receipt first", async () => {
     withDraft({ contact: aContact() });
-    await expect(PaymentStepContainer({ pay })).rejects.toThrow(
-      "NEXT_REDIRECT:/checkout/comprobante",
-    );
+    await expect(
+      PaymentStepContainer({ pay, pendingPayment: noPendingPayment }),
+    ).rejects.toThrow("NEXT_REDIRECT:/checkout/comprobante");
   });
 
   it("shows the card form with the total to pay", async () => {
     withDraft({ contact: aContact(), receipt: BOLETA });
-    const { container } = render(await PaymentStepContainer({ pay }));
+    const { container } = render(
+      await PaymentStepContainer({ pay, pendingPayment: noPendingPayment }),
+    );
 
     // 2 × 189.90 + 248.90 + 10.00 shipping to Lima.
     expect(
@@ -160,6 +163,33 @@ describe("PaymentStepContainer", () => {
     });
     expect(form.get("expectedTotal")).toBe("63870");
     expect(form.get("quoteFingerprint")).toBe(quote?.fingerprint);
+  });
+
+  it("shows a notice and no way to pay when the cart's payment awaits confirmation", async () => {
+    withDraft({ contact: aContact(), receipt: BOLETA });
+    const pendingPayment = vi.fn<PendingPaymentLookup>(async () => ({
+      reference: "MG-2026-000777",
+    }));
+
+    const { container } = render(
+      await PaymentStepContainer({ pay, pendingPayment }),
+    );
+
+    expect(pendingPayment).toHaveBeenCalledWith(CART_ID);
+    const notice = screen.getByRole("region", {
+      name: "Ya registramos un pago",
+    });
+    expect(notice).toHaveTextContent(
+      "Ya registramos un pago para este carrito y lo estamos confirmando. No vuelvas a pagar; te escribiremos a tu correo.",
+    );
+    expect(notice).toHaveTextContent("Código de referencia");
+    expect(notice).toHaveTextContent("MG-2026-000777");
+    expect(screen.queryByRole("button", { name: /Pagar/ })).toBeNull();
+    expect(container.querySelector("form")).toBeNull();
+    // The summary still shows what was paid for.
+    expect(
+      screen.getByRole("region", { name: "Resumen del pedido" }),
+    ).toBeInTheDocument();
   });
 });
 

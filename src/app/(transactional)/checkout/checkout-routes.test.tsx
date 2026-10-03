@@ -13,8 +13,12 @@ import CheckoutPage from "@/app/(transactional)/checkout/page";
 import PaymentPage, {
   metadata as paymentMetadata,
 } from "@/app/(transactional)/checkout/pago/page";
-import type { PayAction } from "@/modules/checkout/ui/pay-action";
+import type {
+  PayAction,
+  PendingPaymentLookup,
+} from "@/modules/checkout/ui/pay-action";
 import { placeOrderAction } from "@/modules/orders/ui/actions";
+import { findPendingPayment } from "@/modules/orders/ui/pending-payment";
 
 vi.mock("@/modules/checkout/ui/checkout-step.containers", () => ({
   redirectToPendingStep: async () => {
@@ -22,9 +26,24 @@ vi.mock("@/modules/checkout/ui/checkout-step.containers", () => ({
   },
   ContactStepContainer: () => <p>Paso contacto</p>,
   ReceiptStepContainer: () => <p>Paso comprobante</p>,
-  PaymentStepContainer: ({ pay }: { pay: PayAction }) => (
-    <p data-pay={pay === placeOrderAction ? "conectado" : "no"}>Paso pago</p>
+  PaymentStepContainer: ({
+    pay,
+    pendingPayment,
+  }: {
+    pay: PayAction;
+    pendingPayment: PendingPaymentLookup;
+  }) => (
+    <p
+      data-pay={pay === placeOrderAction ? "conectado" : "no"}
+      data-pending={pendingPayment === findPendingPayment ? "conectado" : "no"}
+    >
+      Paso pago
+    </p>
   ),
+}));
+
+vi.mock("@/modules/orders/ui/pending-payment", () => ({
+  findPendingPayment: async () => null,
 }));
 
 vi.mock("@/modules/orders/ui/actions", () => ({
@@ -63,10 +82,10 @@ describe("checkout routes", () => {
 
   it("connects the payment step to the orders module", () => {
     render(<PaymentPage />);
-    expect(screen.getByText("Paso pago")).toHaveAttribute(
-      "data-pay",
-      "conectado",
-    );
+    const step = screen.getByText("Paso pago");
+    expect(step).toHaveAttribute("data-pay", "conectado");
+    // It also asks the orders module whether this cart already paid.
+    expect(step).toHaveAttribute("data-pending", "conectado");
   });
 
   it("renders the confirmation of the order in the URL", async () => {

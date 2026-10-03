@@ -22,16 +22,15 @@ import {
 } from "@/modules/checkout/ui/checkout-forms";
 import { CHECKOUT_STEP_PATHS } from "@/modules/checkout/ui/checkout-paths";
 import type { PaymentFormState } from "@/modules/checkout/ui/pay-action";
-import { findOrder } from "@/modules/orders/application/find-order";
 import { placeOrder } from "@/modules/orders/application/place-order";
 import { trackOrder } from "@/modules/orders/application/track-order";
 import {
+  getOrderLookupAttempts,
   getOrderRepository,
   getPaymentGateway,
   getReconciliationLog,
-  getTrackingAttempts,
 } from "@/modules/orders/infrastructure";
-import { readClientKey } from "@/modules/orders/infrastructure/client-key";
+import { identifyClient } from "@/modules/orders/infrastructure/client-key";
 import {
   clearOrderAccess,
   writeOrderAccess,
@@ -42,6 +41,7 @@ import {
   declinedError,
   ORDER_NOT_FOUND_MESSAGE,
   PAYMENT_FAILURE,
+  paymentPendingError,
   paymentRegisteredError,
   TRACKING_COPY,
 } from "./order-copy";
@@ -138,9 +138,21 @@ export async function placeOrderAction(
         attempt,
       };
     }
+    if (error.code === "payment_pending_reconciliation") {
+      // Already charged once (e.g. a second tab still showing "Pagar"):
+      // nothing charged now; the page re-renders with the pending notice.
+      refresh();
+      return {
+        values: echo,
+        errors: {},
+        formError: paymentPendingError(error.orderNumber),
+        attempt,
+      };
+    }
     if (error.code === "order_persist_failed_after_charge") {
       // Charged but not stored: one structured event for the reconciliation
       // (never card or personal data) and an answer that is not "try again".
+      // The page re-renders with the pending notice instead of "Pagar".
       console.error(
         JSON.stringify({
           event: "order_persist_failed_after_charge",
@@ -152,6 +164,7 @@ export async function placeOrderAction(
           failure: error.failure,
         }),
       );
+      refresh();
       return {
         values: echo,
         errors: {},
@@ -186,7 +199,8 @@ export type UnlockOrderState = { message: string | null };
 /**
  * Opens the confirmation of an order with its number and the buyer's email
  * (fields `number` and `email`). A wrong email answers like an unknown
- * number.
+ * number. Throttled like the tracking lookup, with the same limiter and
+ * client keys, so failures here and there add up.
  */
 export async function unlockOrderAction(
   _previous: UnlockOrderState,
@@ -197,11 +211,21 @@ export async function unlockOrderAction(
   if (typeof number !== "string" || typeof email !== "string") {
     return { message: ORDER_NOT_FOUND_MESSAGE };
   }
-  const order = await findOrder(getOrderRepository(), number, email);
-  if (!order) return { message: ORDER_NOT_FOUND_MESSAGE };
+  const result = await trackOrder(
+    { orders: getOrderRepository(), attempts: getOrderLookupAttempts() },
+    { clientKeys: await identifyClient(), number, email },
+  );
+  if (!result.ok) {
+    return {
+      message:
+        result.reason === "too_many_attempts"
+          ? TRACKING_COPY.tooManyAttempts.message
+          : ORDER_NOT_FOUND_MESSAGE,
+    };
+  }
 
-  await writeOrderAccess(order);
-  redirect(orderConfirmationPath(order.number));
+  await writeOrderAccess(result.order);
+  redirect(orderConfirmationPath(result.order.number));
 }
 
 /**
@@ -230,8 +254,8 @@ export async function trackOrderAction(
   let result: Awaited<ReturnType<typeof trackOrder>>;
   try {
     result = await trackOrder(
-      { orders: getOrderRepository(), attempts: getTrackingAttempts() },
-      { clientKey: await readClientKey(), ...parsed.data },
+      { orders: getOrderRepository(), attempts: getOrderLookupAttempts() },
+      { clientKeys: await identifyClient(), ...parsed.data },
     );
   } catch (error) {
     // The message only: never the email.

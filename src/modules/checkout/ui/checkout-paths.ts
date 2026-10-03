@@ -10,5 +10,5 @@ export const CHECKOUT_STEP_PATHS: Record<CheckoutStep, string> = {
   payment: "/checkout/pago",
 };
 
-/** Terms of purchase (page arrives in M9). */
+/** Terms of purchase (`/terminos`, linked from the payment step). */
 export const TERMS_PATH = "/terminos";

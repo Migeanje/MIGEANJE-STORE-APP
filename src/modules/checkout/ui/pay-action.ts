@@ -15,3 +15,19 @@ export type PayAction = (
   previous: PaymentFormState,
   formData: FormData,
 ) => Promise<PaymentFormState>;
+
+/** A payment of this cart that was charged and is being confirmed by hand. */
+export type PendingPayment = {
+  /** What the customer was told to quote (the reserved order number). */
+  reference: string;
+};
+
+/**
+ * Extension point of the payment step: whether this cart already has a
+ * charged payment awaiting confirmation (its order could not be stored). The
+ * `/checkout/pago` route passes the orders module's `findPendingPayment`;
+ * with one, the step shows a notice instead of "Pagar".
+ */
+export type PendingPaymentLookup = (
+  cartId: string,
+) => Promise<PendingPayment | null>;

@@ -25,6 +25,7 @@ import { currentStatus } from "@/modules/orders/domain/order";
 import {
   ACCESS_TOKEN,
   aCard,
+  anOrder,
   fakeOrders,
   fakePayments,
   fakeReconciliations,
@@ -459,6 +460,67 @@ describe("placeOrder", () => {
       code: "order_persist_failed_after_charge",
       recorded: false,
     });
+  });
+
+  it("never charges again a cart whose payment awaits reconciliation", async () => {
+    const { services, orders, payment, cart } = setup();
+    const save = services.orders.save;
+    services.orders = {
+      ...services.orders,
+      save: async () => {
+        throw new Error("disk full");
+      },
+    };
+    const input = {
+      cart,
+      draft: DRAFT,
+      card: aCard(),
+      expected: quoteOf(cart),
+      facturaEnabled: false,
+    };
+    const first = await placeOrder(services, input);
+    expect(first.ok).toBe(false);
+
+    // The store works again, the page is the same: still no second charge.
+    services.orders = { ...services.orders, save };
+    const second = await placeOrder(services, input);
+
+    expect(second).toEqual({
+      ok: false,
+      error: {
+        code: "payment_pending_reconciliation",
+        orderNumber: "MG-2026-000001",
+      },
+    });
+    expect(payment.requests).toHaveLength(1);
+    expect(orders.store.size).toBe(0);
+  });
+
+  it("charges other carts while one awaits reconciliation", async () => {
+    const reconciliations = fakeReconciliations();
+    const { services, cart } = setup({ reconciliations });
+    const { payment: _payment, ...other } = anOrder({
+      number: "MG-2026-999999",
+    });
+    await reconciliations.log.record({
+      order: other,
+      chargeId: "chr_demo_0",
+      amount: other.totals.total,
+      currency: "PEN",
+      cartId: "00000000-0000-4000-8000-000000000000",
+      failure: "disk full",
+      recordedAt: PLACED_AT.toISOString(),
+    });
+
+    const result = await placeOrder(services, {
+      cart,
+      draft: DRAFT,
+      card: aCard(),
+      expected: quoteOf(cart),
+      facturaEnabled: false,
+    });
+
+    expect(result.ok).toBe(true);
   });
 
   it("keeps a stored order when emptying the cart fails afterwards", async () => {

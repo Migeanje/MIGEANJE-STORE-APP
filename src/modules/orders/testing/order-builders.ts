@@ -83,6 +83,9 @@ export function fakeReconciliations({ failure }: { failure?: Error } = {}) {
       if (failure) throw failure;
       entries.push(entry);
     },
+    async findByCart(cartId) {
+      return entries.findLast((entry) => entry.cartId === cartId) ?? null;
+    },
   };
   return { log, entries };
 }

@@ -107,3 +107,15 @@ export function deliveryEstimateText(quote: {
   }
   return `Entrega en ${dayRangeText(quote.deliveryDays)} días hábiles: ${dayRangeText(quote.leadTimeDays)} de importación y ${dayRangeText(quote.transitDays)} de envío.`;
 }
+
+/**
+ * The payment step of a cart whose payment was charged but awaits
+ * confirmation (its order could not be stored): no "Pagar" button.
+ */
+export const PAYMENT_PENDING_COPY = {
+  title: "Ya registramos un pago",
+  message:
+    "Ya registramos un pago para este carrito y lo estamos confirmando. No vuelvas a pagar; te escribiremos a tu correo.",
+  referenceLabel: "Código de referencia",
+  home: "Volver al inicio",
+} as const;

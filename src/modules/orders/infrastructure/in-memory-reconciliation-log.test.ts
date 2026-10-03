@@ -29,6 +29,25 @@ describe("createInMemoryReconciliationLog", () => {
     expect(await log.list()).toEqual([first, second]);
   });
 
+  it("finds the latest pending reconciliation of a cart", async () => {
+    const log = createInMemoryReconciliationLog();
+    const first = anEntry();
+    const later = { ...anEntry(), chargeId: "chr_demo_2" };
+    const otherCart = {
+      ...anEntry(),
+      cartId: "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
+    };
+    await log.record(first);
+    await log.record(later);
+    await log.record(otherCart);
+
+    expect(await log.findByCart(first.cartId)).toEqual(later);
+    expect(await log.findByCart(otherCart.cartId)).toEqual(otherCart);
+    expect(
+      await log.findByCart("00000000-0000-4000-8000-000000000000"),
+    ).toBeNull();
+  });
+
   it("stores and returns copies", async () => {
     const log = createInMemoryReconciliationLog();
     const entry = anEntry();

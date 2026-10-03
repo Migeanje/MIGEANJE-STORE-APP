@@ -19,6 +19,10 @@ export function createInMemoryReconciliationLog(): InMemoryReconciliationLog {
     async record(entry) {
       entries.push(structuredClone(entry));
     },
+    async findByCart(cartId) {
+      const entry = entries.findLast((pending) => pending.cartId === cartId);
+      return entry ? structuredClone(entry) : null;
+    },
     async list() {
       return structuredClone(entries);
     },

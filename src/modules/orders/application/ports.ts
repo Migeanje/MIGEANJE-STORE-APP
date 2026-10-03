@@ -69,4 +69,9 @@ export type PendingReconciliation = {
  */
 export interface ReconciliationLog {
   record(entry: PendingReconciliation): Promise<void>;
+  /**
+   * The latest pending reconciliation of this cart, or null: its payment was
+   * charged, so the cart must not be charged again.
+   */
+  findByCart(cartId: string): Promise<PendingReconciliation | null>;
 }

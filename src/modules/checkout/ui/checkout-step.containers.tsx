@@ -19,8 +19,9 @@ import {
   receiptFormDefaults,
 } from "./checkout-view";
 import { ContactForm } from "./contact-form";
-import type { PayAction } from "./pay-action";
+import type { PayAction, PendingPaymentLookup } from "./pay-action";
 import { PaymentForm } from "./payment-form";
+import { PaymentPendingNotice } from "./payment-pending-notice";
 import { ReceiptForm } from "./receipt-form";
 
 /*
@@ -88,16 +89,37 @@ export async function ReceiptStepContainer() {
   );
 }
 
+export type PaymentStepContainerProps = {
+  /** The orders module's `placeOrderAction`. */
+  pay: PayAction;
+  /** The orders module's `findPendingPayment`. */
+  pendingPayment: PendingPaymentLookup;
+};
+
 /**
- * Step 3: the simulated card payment. `pay` is the orders module's
- * `placeOrderAction` (the checkout never imports orders).
+ * Step 3: the simulated card payment. `pay` and `pendingPayment` come from
+ * the orders module (the checkout never imports orders). A cart whose
+ * payment was already charged and awaits confirmation gets a notice instead
+ * of the card form, so it cannot be paid twice.
  */
-export async function PaymentStepContainer({ pay }: { pay: PayAction }) {
+export async function PaymentStepContainer({
+  pay,
+  pendingPayment,
+}: PaymentStepContainerProps) {
   const checkout = await requireCheckout();
   const { draft, cart } = checkout;
   if (!draft.contact) redirect(CHECKOUT_STEP_PATHS.contact);
   if (!hasUsableReceipt(draft, { facturaEnabled: features.factura })) {
     redirect(CHECKOUT_STEP_PATHS.receipt);
+  }
+
+  const pending = await pendingPayment(cart.id);
+  if (pending) {
+    return (
+      <CheckoutShell step="payment" summary={summaryOf(checkout)}>
+        <PaymentPendingNotice reference={pending.reference} />
+      </CheckoutShell>
+    );
   }
   const { ubigeo } = draft.contact.address;
   const quote = paymentQuote(cart.lines, {
