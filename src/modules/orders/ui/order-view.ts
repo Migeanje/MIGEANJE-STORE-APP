@@ -6,7 +6,8 @@ import {
   TAX_NOTE,
   transitText,
 } from "@/modules/checkout/ui/checkout-copy";
-import type { Order } from "@/modules/orders/domain/order";
+import type { Order, OrderLine } from "@/modules/orders/domain/order";
+import type { OrderSummaryLine } from "@/shared/ui/organisms/order-summary";
 import type { OrderConfirmationProps } from "@/shared/ui/templates/order-confirmation";
 import { backorderNoteText, nextSteps } from "./order-copy";
 import { orderTrackingHref } from "./order-paths";
@@ -20,7 +21,7 @@ const DATE_PARTS = new Intl.DateTimeFormat("es-PE", {
 });
 
 /** "lunes 5 de octubre" for "2026-10-05". */
-function dateText(date: string): string {
+export function dateText(date: string): string {
   const parts = DATE_PARTS.formatToParts(new Date(`${date}T00:00:00Z`));
   const part = (type: Intl.DateTimeFormatPartTypes) =>
     parts.find((entry) => entry.type === type)?.value ?? "";
@@ -56,21 +57,72 @@ function rangeText({ min, max }: { min: number; max: number }): string {
   return min === max ? `${min}` : `${min}–${max}`;
 }
 
+/** "Envío a Lima Metropolitana" or "Envío a Arequipa". */
+export function orderShippingLabel(order: Order): string {
+  return shippingLabel(
+    order.shipping.zone,
+    order.shippingAddress.ubigeo.departamento.name,
+  );
+}
+
+/** "Envío a Arequipa · 18–25 días hábiles (15–20 de importación)". */
+export function deliveryDetailText(order: Order): string {
+  const { shipping } = order;
+  const time = shipping.leadTimeDays
+    ? `${rangeText(shipping.deliveryDays)} días hábiles (${rangeText(shipping.leadTimeDays)} de importación)`
+    : transitText(shipping.zone, shipping.transitDays);
+  return `${orderShippingLabel(order)} · ${time}`;
+}
+
+type SummaryLineAvailability = OrderSummaryLine["availability"];
+
+function availabilityAtPurchase(line: OrderLine): SummaryLineAvailability {
+  return {
+    status: line.availability.status,
+    label: availabilityLabel(line.availability),
+  };
+}
+
+/**
+ * The order summary (lines, totals in céntimos, notes) of a paid order.
+ * Lines show their availability at purchase unless `lineAvailability`
+ * answers something else for a line.
+ */
+export function orderSummaryView(
+  order: Order,
+  lineAvailability?: (line: OrderLine) => SummaryLineAvailability | undefined,
+): OrderConfirmationProps["summary"] {
+  return {
+    lines: order.lines.map((line) => ({
+      key: line.sku,
+      name: line.product.name,
+      variantLabel:
+        line.product.variantLabel === ""
+          ? undefined
+          : line.product.variantLabel,
+      quantity: line.quantity,
+      lineTotal: line.lineTotal,
+      availability: lineAvailability?.(line) ?? availabilityAtPurchase(line),
+    })),
+    subtotal: order.totals.subtotal,
+    shipping: order.totals.shipping,
+    shippingLabel: orderShippingLabel(order),
+    total: order.totals.total,
+    notes: [TAX_NOTE],
+  };
+}
+
 /** Everything the confirmation page shows about a paid order. */
 export function orderConfirmationView(order: Order): OrderConfirmationProps {
   const { shipping, shippingAddress: address } = order;
   const { departamento, provincia, distrito } = address.ubigeo;
-  const label = shippingLabel(shipping.zone, departamento.name);
-  const time = shipping.leadTimeDays
-    ? `${rangeText(shipping.deliveryDays)} días hábiles (${rangeText(shipping.leadTimeDays)} de importación)`
-    : transitText(shipping.zone, shipping.transitDays);
 
   return {
     orderNumber: order.number,
     email: order.customer.email,
     delivery: {
       title: deliveryDateText(order.estimatedDelivery),
-      detail: `${label} · ${time}`,
+      detail: deliveryDetailText(order),
     },
     backorderNote: shipping.leadTimeDays
       ? backorderNoteText(shipping.leadTimeDays)
@@ -82,27 +134,7 @@ export function orderConfirmationView(order: Order): OrderConfirmationProps {
       `${distrito.name}, ${provincia.name}, ${departamento.name}`,
     ],
     nextSteps: nextSteps(shipping.leadTimeDays !== null),
-    summary: {
-      lines: order.lines.map((line) => ({
-        key: line.sku,
-        name: line.product.name,
-        variantLabel:
-          line.product.variantLabel === ""
-            ? undefined
-            : line.product.variantLabel,
-        quantity: line.quantity,
-        lineTotal: line.lineTotal,
-        availability: {
-          status: line.availability.status,
-          label: availabilityLabel(line.availability),
-        },
-      })),
-      subtotal: order.totals.subtotal,
-      shipping: order.totals.shipping,
-      shippingLabel: label,
-      total: order.totals.total,
-      notes: [TAX_NOTE],
-    },
+    summary: orderSummaryView(order),
     trackingHref: orderTrackingHref(order.number),
     continueHref: "/",
   };
