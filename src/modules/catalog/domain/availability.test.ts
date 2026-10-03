@@ -15,14 +15,12 @@ function backorder(min: number, max: number): Availability {
 }
 
 describe("availabilitySchema", () => {
-  it.each([
-    IN_STOCK,
-    UNAVAILABLE,
-    backorder(15, 20),
-    backorder(1, 1),
-  ])("accepts %j", (availability) => {
-    expect(availabilitySchema.parse(availability)).toEqual(availability);
-  });
+  it.each([IN_STOCK, UNAVAILABLE, backorder(15, 20), backorder(1, 1)])(
+    "accepts %j",
+    (availability) => {
+      expect(availabilitySchema.parse(availability)).toEqual(availability);
+    },
+  );
 
   it.each([
     ["a backorder without lead time", { status: "backorder" }],
@@ -46,14 +44,18 @@ describe("isPurchasable", () => {
 
 describe("bestAvailability", () => {
   it("prefers stock over any backorder", () => {
-    expect(
-      bestAvailability([UNAVAILABLE, backorder(1, 2), IN_STOCK]),
-    ).toEqual(IN_STOCK);
+    expect(bestAvailability([UNAVAILABLE, backorder(1, 2), IN_STOCK])).toEqual(
+      IN_STOCK,
+    );
   });
 
   it("picks the backorder that arrives soonest (latest day first, then earliest)", () => {
     expect(
-      bestAvailability([backorder(15, 20), backorder(10, 25), backorder(12, 20)]),
+      bestAvailability([
+        backorder(15, 20),
+        backorder(10, 25),
+        backorder(12, 20),
+      ]),
     ).toEqual(backorder(12, 20));
   });
 

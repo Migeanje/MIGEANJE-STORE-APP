@@ -4,9 +4,12 @@ import { formatPEN } from "@/shared/lib/money";
 import { moneySchema } from "./money";
 
 describe("moneySchema", () => {
-  it.each([0, 12990, Number.MAX_SAFE_INTEGER])("accepts %s céntimos", (amount) => {
-    expect(moneySchema.parse(amount)).toBe(amount);
-  });
+  it.each([0, 12990, Number.MAX_SAFE_INTEGER])(
+    "accepts %s céntimos",
+    (amount) => {
+      expect(moneySchema.parse(amount)).toBe(amount);
+    },
+  );
 
   it.each([
     ["a negative amount", -1],
