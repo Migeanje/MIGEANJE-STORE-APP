@@ -8,14 +8,19 @@ import { Button } from "@/shared/ui/atoms/button";
 
 const MAX_BADGE_COUNT = 99;
 
-/** "Carrito, 0 productos", "Carrito, 1 producto". */
-export function cartButtonLabel(count: number): string {
+/** "Carrito, 0 productos", "Carrito, 1 producto"; "Carrito" when unknown. */
+export function cartButtonLabel(count?: number): string {
+  if (count === undefined) return "Carrito";
   return `Carrito, ${count} ${count === 1 ? "producto" : "productos"}`;
 }
 
 export type CartButtonProps = {
-  /** Units in the cart: a non-negative integer. */
-  count: number;
+  /**
+   * Units in the cart: a non-negative integer. Omit it while the count is
+   * unknown (e.g. the cart still streaming in): the control is then just
+   * "Carrito", without a badge.
+   */
+  count?: number;
   /** The cart page: where the link goes before (and without) JavaScript. */
   href: string;
   /**
@@ -43,7 +48,7 @@ export function CartButton({
   expanded = false,
   className,
 }: CartButtonProps) {
-  if (!Number.isSafeInteger(count) || count < 0) {
+  if (count !== undefined && (!Number.isSafeInteger(count) || count < 0)) {
     throw new RangeError(
       `CartButton count must be a non-negative integer, got ${count}`,
     );
@@ -51,7 +56,7 @@ export function CartButton({
   const hydrated = useHydrated();
   const classes = cn("size-11 px-0", className);
   const badge =
-    count > 0 ? (
+    count !== undefined && count > 0 ? (
       <span
         data-testid="cart-count"
         className="absolute top-0.5 right-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-pill bg-primary px-1 font-mono text-caption text-primary-foreground"

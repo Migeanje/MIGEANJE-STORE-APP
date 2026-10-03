@@ -1,11 +1,12 @@
 "use client";
 
-import { Menu, User } from "lucide-react";
+import { Menu } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { type ReactNode, Suspense, useState } from "react";
 import { cn } from "@/shared/lib/cn";
 import { Button } from "@/shared/ui/atoms/button";
+import { AccountLink } from "@/shared/ui/molecules/account-link";
 import { CartButton } from "@/shared/ui/molecules/cart-button";
 import {
   SearchBar,
@@ -34,10 +35,16 @@ export type SiteHeaderProps = {
    * `cartCount`), e.g. with a cart module control that opens the drawer.
    */
   cart?: ReactNode;
+  /**
+   * Replaces the default account link (an `AccountLink` to /cuenta), e.g.
+   * with the account module's link showing the signed-in first name.
+   */
+  account?: ReactNode;
 };
 
 const SEARCH_PATH = "/buscar";
 const CART_PATH = "/carrito";
+const ACCOUNT_PATH = "/cuenta";
 
 function categoryHref(slug: string): string {
   return `/categorias/${slug}`;
@@ -86,7 +93,8 @@ function HeaderSearchBar(props: HeaderSearchBarProps) {
 }
 
 /**
- * Sticky site header: wordmark, product search, account link, the cart control
+ * Sticky site header: wordmark, product search, the account control
+ * (`AccountLink` to /cuenta, or the `account` slot), the cart control
  * (`CartButton` to /carrito, or the `cart` slot) and the category navigation. Below `lg` the navigation and search move into a menu
  * sheet (focus trap, Escape returns focus to the menu button). The search is a
  * native GET form to /buscar, so it works before hydration; once hydrated it
@@ -97,6 +105,7 @@ export function SiteHeader({
   categories,
   cartCount = 0,
   cart,
+  account,
 }: SiteHeaderProps) {
   if (!Number.isSafeInteger(cartCount) || cartCount < 0) {
     throw new RangeError(
@@ -182,16 +191,7 @@ export function SiteHeader({
         />
 
         <div className="ml-auto flex items-center gap-1">
-          <Button
-            asChild
-            variant="ghost"
-            className="size-11 px-0"
-            leadingIcon={<User />}
-          >
-            <Link href="/cuenta">
-              <span className="sr-only">Mi cuenta</span>
-            </Link>
-          </Button>
+          {account ?? <AccountLink href={ACCOUNT_PATH} />}
           <div className="-mr-2 flex">
             {cart ?? <CartButton count={cartCount} href={CART_PATH} />}
           </div>

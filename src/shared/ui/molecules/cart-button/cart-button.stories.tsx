@@ -25,6 +25,11 @@ type Story = StoryObj<typeof meta>;
 
 export const Empty: Story = {};
 
+export const UnknownCount: Story = {
+  name: "Unknown count (cart still loading)",
+  args: { count: undefined },
+};
+
 export const WithItems: Story = {
   name: "With items (link)",
   args: { count: 3 },

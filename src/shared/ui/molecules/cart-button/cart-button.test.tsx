@@ -19,6 +19,17 @@ describe("CartButton", () => {
     );
   });
 
+  it("is a link named just 'Carrito' while the count is unknown", async () => {
+    const { container } = render(<CartButton href="/carrito" />);
+
+    expect(screen.getByRole("link", { name: "Carrito" })).toHaveAttribute(
+      "href",
+      "/carrito",
+    );
+    expect(screen.queryByTestId("cart-count")).toBeNull();
+    await expectNoAxeViolations(container);
+  });
+
   it("shows a decorative badge only above 0, capped at 99+", () => {
     const { rerender } = render(<CartButton count={0} href="/carrito" />);
     expect(screen.queryByTestId("cart-count")).toBeNull();

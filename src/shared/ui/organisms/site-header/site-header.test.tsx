@@ -159,6 +159,20 @@ describe("SiteHeader", () => {
     );
   });
 
+  it("renders the account slot instead of the default account link", () => {
+    render(
+      <SiteHeader
+        categories={CATEGORIES}
+        account={<a href="/cuenta">Mi cuenta, Lucía</a>}
+      />,
+    );
+
+    expect(
+      screen.getByRole("link", { name: "Mi cuenta, Lucía" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Mi cuenta" })).toBeNull();
+  });
+
   it("searches with a native GET form to /buscar, enhanced with client navigation", async () => {
     const user = userEvent.setup();
     render(<SiteHeader categories={CATEGORIES} />);
