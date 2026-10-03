@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { type ReactNode, useRef } from "react";
+import type { CartLine } from "@/modules/cart/domain/cart";
 import { cn } from "@/shared/lib/cn";
 import { useHydrated } from "@/shared/lib/use-hydrated";
 import { Button } from "@/shared/ui/atoms/button";
@@ -13,6 +14,7 @@ import { CartLineList } from "@/shared/ui/organisms/cart-line-list";
 import { CartLineForms } from "./cart-line-forms";
 import { CHECKOUT_PATH } from "./cart-paths";
 import { useCart } from "./cart-provider";
+import { toCartView } from "./cart-view";
 
 const LINES_HEADING_ID = "carrito-productos";
 
@@ -22,8 +24,20 @@ const LINES_HEADING_ID = "carrito-productos";
  * the cart's server actions; once hydrated they become the same optimistic
  * controls as the drawer. Empty, it offers `emptyState` (category links).
  */
-export function CartPageContainer({ emptyState }: { emptyState?: ReactNode }) {
-  const { view, status, changeQuantity, removeLine } = useCart();
+export function CartPageContainer({
+  emptyState,
+  serverLines = [],
+}: {
+  emptyState?: ReactNode;
+  /**
+   * The cart as the server read it for this page: shown until the browser
+   * has loaded the cart (and always without JavaScript).
+   */
+  serverLines?: CartLine[];
+}) {
+  const cart = useCart();
+  const { status, changeQuantity, removeLine } = cart;
+  const view = cart.view ?? toCartView(serverLines);
   const hydrated = useHydrated();
   const statusRef = useRef<HTMLParagraphElement>(null);
   const isEmpty = view.lines.length === 0;

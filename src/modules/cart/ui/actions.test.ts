@@ -4,6 +4,7 @@ import { getCartRepository } from "@/modules/cart/infrastructure";
 import { CART_COOKIE } from "@/modules/cart/infrastructure/cart-cookie";
 import {
   addToCartAction,
+  readCartAction,
   removeLineAction,
   updateQuantityAction,
 } from "./actions";
@@ -37,6 +38,31 @@ async function cartLines() {
   const cart = id ? await getCartRepository().get(id) : null;
   return cart?.lines.map(({ sku, quantity }) => [sku, quantity]) ?? [];
 }
+
+describe("readCartAction", () => {
+  beforeEach(() => {
+    jar.clear();
+    setCookie.mockClear();
+  });
+
+  it("answers the lines of this browser's cart, without writing any cookie", async () => {
+    expect(await readCartAction()).toEqual([]);
+
+    await addToCartAction(null, form({ sku: "ANK-A2688", cantidad: "2" }));
+    setCookie.mockClear();
+
+    const lines = await readCartAction();
+    expect(lines.map(({ sku, quantity }) => [sku, quantity])).toEqual([
+      ["ANK-A2688", 2],
+    ]);
+    expect(setCookie).not.toHaveBeenCalled();
+  });
+
+  it("answers an empty cart for an unknown cart id", async () => {
+    jar.set(CART_COOKIE, crypto.randomUUID());
+    expect(await readCartAction()).toEqual([]);
+  });
+});
 
 describe("addToCartAction", () => {
   beforeEach(() => {

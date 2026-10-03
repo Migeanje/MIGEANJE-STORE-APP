@@ -10,16 +10,23 @@ export type SiteHeaderContainerProps = {
    * shows a plain link to /carrito with 0 items.
    */
   cart?: ReactNode;
+  /**
+   * The account control, composed by the root layout from the account
+   * module (the signed-in first name). Without it the header shows a plain
+   * "Mi cuenta" link.
+   */
+  account?: ReactNode;
 };
 
 /**
  * Server Component: the site header with the catalog categories as primary
- * navigation. The catalog never imports the cart: the cart control arrives
- * as a slot.
+ * navigation. The catalog never imports the cart or the account: their
+ * controls arrive as slots.
  */
 export async function SiteHeaderContainer({
   cart,
+  account,
 }: SiteHeaderContainerProps = {}) {
   const categories = await loadCategoryLinks(getCatalogRepository());
-  return <SiteHeader categories={categories} cart={cart} />;
+  return <SiteHeader categories={categories} cart={cart} account={account} />;
 }

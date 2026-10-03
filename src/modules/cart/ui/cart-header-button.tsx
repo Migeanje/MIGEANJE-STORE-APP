@@ -6,16 +6,17 @@ import { useCart } from "./cart-provider";
 
 /**
  * The header cart control: a link to /carrito in the server HTML (no-JS
- * fallback), a button opening the drawer once hydrated. The count includes
- * pending (optimistic) changes.
+ * fallback), a button opening the drawer once hydrated and the cart loaded.
+ * The count includes pending (optimistic) changes. Until the browser has
+ * loaded the cart (and without JavaScript) it is "Carrito", without a count.
  */
 export function CartHeaderButton() {
   const { view, open, openCart } = useCart();
   return (
     <CartButton
-      count={view.itemCount}
+      count={view?.itemCount}
       href={CART_PATH}
-      onOpen={openCart}
+      onOpen={view ? openCart : undefined}
       expanded={open}
     />
   );

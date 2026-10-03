@@ -2,8 +2,10 @@
 
 import { refresh } from "next/cache";
 import { addToCart } from "@/modules/cart/application/add-to-cart";
+import { getCart } from "@/modules/cart/application/get-cart";
 import { removeLine } from "@/modules/cart/application/remove-line";
 import { updateLineQuantity } from "@/modules/cart/application/update-line-quantity";
+import type { CartLine } from "@/modules/cart/domain/cart";
 import {
   getCartRepository,
   getCartServices,
@@ -36,10 +38,22 @@ import {
  * Cart server actions. Each one reads the cart id from the httpOnly cookie,
  * runs a use case (price and availability come from the catalog, never from
  * the form), renews the cookie and calls `refresh()` so the same response
- * carries the re-rendered header count, drawer and cart page. They answer
+ * carries the re-rendered page (e.g. /carrito without JavaScript); the
+ * header count and the drawer load the cart again (`readCartAction`). They answer
  * `{ ok, message }` for `useActionState` (forms work before hydration and
  * without JavaScript) and for direct calls from the optimistic drawer.
  */
+
+/**
+ * The lines of this browser's cart (empty without one), for the header count
+ * and the drawer: the root layout never reads the cart cookie, so pages stay
+ * static and the browser asks for the cart after loading (and after every
+ * navigation or change). Read-only: it never creates a cart or a cookie.
+ */
+export async function readCartAction(): Promise<CartLine[]> {
+  const cart = await getCart(getCartRepository(), await readCartId());
+  return cart?.lines ?? [];
+}
 
 function failed(error: unknown): CartActionResult {
   console.error("Cart action failed", error);

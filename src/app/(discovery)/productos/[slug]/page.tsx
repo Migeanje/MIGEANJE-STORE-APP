@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import { FavoriteToggleContainer } from "@/modules/account/ui/favorite-toggle.container";
 import { addToCartAction } from "@/modules/cart/ui/actions";
 import {
   productMetadata,
   productStaticParams,
 } from "@/modules/catalog/ui/catalog-routes";
+import { productPath } from "@/modules/catalog/ui/catalog-url";
 import { ProductPageContainer } from "@/modules/catalog/ui/product-page.container";
 
 // Every product slug is known at build time; anything else is a 404. The
@@ -29,6 +31,9 @@ export default async function ProductPage({
       slug={slug}
       searchParams={await searchParams}
       addToCart={addToCartAction}
+      favorite={
+        <FavoriteToggleContainer slug={slug} returnTo={productPath(slug)} />
+      }
     />
   );
 }

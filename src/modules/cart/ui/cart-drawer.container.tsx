@@ -12,14 +12,17 @@ export function CartDrawerContainer({
   emptyState?: ReactNode;
 }) {
   const cart = useCart();
+  const { view } = cart;
+  // Nothing to show until the browser has loaded the cart.
+  if (!view) return null;
   return (
     <CartDrawer
       open={cart.open}
       onOpenChange={cart.setOpen}
-      lines={cart.view.lines}
-      itemCountLabel={cart.view.itemCountLabel}
-      subtotal={cart.view.subtotal}
-      notes={cart.view.notes}
+      lines={view.lines}
+      itemCountLabel={view.itemCountLabel}
+      subtotal={view.subtotal}
+      notes={view.notes}
       status={cart.status}
       focusStatusOnOpen={cart.focusStatus}
       checkoutHref={CHECKOUT_PATH}

@@ -13,6 +13,8 @@ vi.mock("next/navigation", () => ({ usePathname: () => "/carrito" }));
 const actions = vi.hoisted(() => ({
   updateQuantityAction: vi.fn(async () => ({ ok: true, message: "" })),
   removeLineAction: vi.fn(async () => ({ ok: true, message: "Quitaste." })),
+  // The layout's provider loads the cart in the browser: never, here.
+  readCartAction: vi.fn(() => new Promise(() => {})),
 }));
 vi.mock("./actions", () => actions);
 
@@ -78,6 +80,18 @@ describe("CartPageContainer", () => {
     expect(actions.removeLineAction).toHaveBeenCalledTimes(1);
     expect(screen.getAllByRole("spinbutton")).toHaveLength(1);
     expect(screen.getAllByRole("status")[0]).toHaveFocus();
+  });
+
+  it("shows the server's lines while the browser has not loaded the cart (no JavaScript)", () => {
+    const html = renderToString(
+      <CartProvider>
+        <CartPageContainer serverLines={LINES} />
+      </CartProvider>,
+    );
+
+    expect(html).toContain("Nano Charger 45W Smart Display");
+    expect(html).toContain("3 productos");
+    expect(html).toContain('name="cantidad"');
   });
 
   it("renders forms that post without JavaScript in the server HTML", () => {

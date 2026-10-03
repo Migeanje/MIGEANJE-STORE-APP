@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AccountHeaderLink } from "@/modules/account/ui/account-header-link";
 import { CartHeaderButton } from "@/modules/cart/ui/cart-header-button";
 import { CartRoot } from "@/modules/cart/ui/cart-root";
 import { CategoryShortcutsContainer } from "@/modules/catalog/ui/category-shortcuts.container";
@@ -21,7 +22,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable}`}
     >
       <body className="flex min-h-dvh flex-col antialiased">
-        {/* Reads the cart cookie: every page renders per request. */}
+        {/*
+          No cookie is read here, so pages that do not need one stay static:
+          the browser loads the header's cart count, the drawer and the
+          account name after the page.
+        */}
         <CartRoot
           emptyState={
             <CategoryShortcutsContainer headingId="carrito-categorias" />
@@ -33,7 +38,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           >
             Saltar al contenido
           </a>
-          <SiteHeaderContainer cart={<CartHeaderButton />} />
+          <SiteHeaderContainer
+            cart={<CartHeaderButton />}
+            account={<AccountHeaderLink />}
+          />
           {/* tabIndex -1: the skip link moves focus here in every browser. */}
           <main
             id="contenido"

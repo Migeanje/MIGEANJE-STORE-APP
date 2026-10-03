@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { loadCart } from "./cart-data";
 import { CartDrawerContainer } from "./cart-drawer.container";
 import { CartProvider } from "./cart-provider";
 
@@ -10,14 +9,16 @@ export type CartRootProps = {
 };
 
 /**
- * Server Component for the root layout: reads the cart from the cookie and
- * provides it to the page (header count, drawer, cart page, "Agregar al
- * carrito"), with the drawer rendered once after the children.
+ * For the root layout: provides the cart to the page (header count, drawer,
+ * cart page, "Agregar al carrito"), with the drawer rendered once after the
+ * children. It never reads the cart cookie, so pages that do not need the
+ * cart stay static: the browser loads the cart after the page
+ * (`readCartAction`), and pages that need it on the server (cart, checkout)
+ * read it themselves.
  */
-export async function CartRoot({ children, emptyState }: CartRootProps) {
-  const cart = await loadCart();
+export function CartRoot({ children, emptyState }: CartRootProps) {
   return (
-    <CartProvider lines={cart?.lines ?? []}>
+    <CartProvider>
       {children}
       <CartDrawerContainer emptyState={emptyState} />
     </CartProvider>

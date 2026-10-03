@@ -1,38 +1,65 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { aCart, aLine } from "@/modules/cart/testing/cart-builders";
+import type { CartLine } from "@/modules/cart/domain/cart";
+import { aLine } from "@/modules/cart/testing/cart-builders";
 import { CartHeaderButton } from "./cart-header-button";
 import { CartRoot } from "./cart-root";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/" }));
-vi.mock("./actions", () => ({
+
+const actions = vi.hoisted(() => ({
   updateQuantityAction: vi.fn(),
   removeLineAction: vi.fn(),
+  readCartAction: vi.fn(),
 }));
+vi.mock("./actions", () => actions);
 
-const loadCart = vi.hoisted(() => vi.fn());
-vi.mock("./cart-data", () => ({ loadCart }));
+// No mock of `./cart-data`: CartRoot must not read the cart cookie (that
+// would make every page render per request). Importing that server-only
+// module here would fail.
 
 describe("CartRoot", () => {
-  it("provides the cart of the cookie to the page", async () => {
-    loadCart.mockResolvedValue(aCart([aLine({ quantity: 2 })]));
-
-    render(
-      await CartRoot({ children: <CartHeaderButton />, emptyState: null }),
+  it("renders the page without the cart; the browser loads it afterwards", async () => {
+    let resolveLines: (lines: CartLine[]) => void = () => {};
+    actions.readCartAction.mockReturnValue(
+      new Promise<CartLine[]>((resolve) => {
+        resolveLines = resolve;
+      }),
     );
 
+    // Not an async component: the layout never waits for the cart.
+    const element = CartRoot({
+      children: <CartHeaderButton />,
+      emptyState: null,
+    });
+    expect(element).not.toBeInstanceOf(Promise);
+    await act(async () => {
+      render(element);
+    });
+
+    // Until the cart arrives (and without JavaScript) the header shows a
+    // plain link to /carrito, without a count.
+    expect(screen.getByRole("link", { name: "Carrito" })).toHaveAttribute(
+      "href",
+      "/carrito",
+    );
+
+    await act(async () => resolveLines([aLine({ quantity: 2 })]));
+
     expect(
-      screen.getByRole("button", { name: "Carrito, 2 productos" }),
+      await screen.findByRole("button", { name: "Carrito, 2 productos" }),
     ).toBeInTheDocument();
   });
 
-  it("provides an empty cart without a cookie", async () => {
-    loadCart.mockResolvedValue(null);
+  it("shows an empty cart without a cookie", async () => {
+    actions.readCartAction.mockResolvedValue([]);
 
-    render(await CartRoot({ children: <CartHeaderButton /> }));
+    await act(async () => {
+      render(CartRoot({ children: <CartHeaderButton /> }));
+    });
 
     expect(
-      screen.getByRole("button", { name: "Carrito, 0 productos" }),
+      await screen.findByRole("button", { name: "Carrito, 0 productos" }),
     ).toBeInTheDocument();
   });
 });

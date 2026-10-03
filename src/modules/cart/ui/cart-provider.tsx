@@ -6,15 +6,21 @@ import {
   type ReactNode,
   use,
   useCallback,
+  useEffect,
   useMemo,
   useOptimistic,
+  useRef,
   useState,
   useTransition,
 } from "react";
 import type { CartLine } from "@/modules/cart/domain/cart";
 import type { AddToCartResult } from "@/modules/catalog/ui/add-to-cart";
 import { AddToCartFeedbackProvider } from "@/modules/catalog/ui/add-to-cart-feedback";
-import { removeLineAction, updateQuantityAction } from "./actions";
+import {
+  readCartAction,
+  removeLineAction,
+  updateQuantityAction,
+} from "./actions";
 import { CART_FAILURE_MESSAGE } from "./cart-copy";
 import {
   type CartActionResult,
@@ -31,8 +37,11 @@ import {
 export type CartStatus = { message: string; tone: "default" | "error" };
 
 export type CartContextValue = {
-  /** The cart with pending changes applied (optimistic). */
-  view: CartView;
+  /**
+   * The cart with pending changes applied (optimistic); null until the
+   * browser has loaded it (the root layout never reads the cart cookie).
+   */
+  view: CartView | null;
   open: boolean;
   setOpen: (open: boolean) => void;
   /** Opens the drawer from the header button. */
@@ -54,22 +63,50 @@ export function useCart(): CartContextValue {
   return value;
 }
 
+const NO_CHANGES: readonly CartChange[] = [];
+
+function appendChange(
+  changes: readonly CartChange[],
+  change: CartChange,
+): readonly CartChange[] {
+  return [...changes, change];
+}
+
+export type CartProviderProps = {
+  /**
+   * The cart lines when the server already read the cart (tests, stories).
+   * Without them, the provider loads the cart itself with `load`: after the
+   * first render, after every navigation (e.g. paying empties the cart) and
+   * after every change the server accepted.
+   */
+  lines?: CartLine[];
+  /** Loads this browser's cart lines; `readCartAction` by default. */
+  load?: () => Promise<CartLine[]>;
+  children: ReactNode;
+};
+
 /**
- * Client state of the cart for the whole page: the server's lines (from the
- * cookie, re-rendered by `refresh()` after every action) with optimistic
- * changes on top (`useOptimistic`: they roll back by themselves when an
- * action fails, and the error is announced), the drawer's open state, and
- * the listener that opens the drawer after "Agregar al carrito".
+ * Client state of the cart for the whole page: the cart lines with
+ * optimistic changes on top (`useOptimistic`: they roll back by themselves
+ * when an action fails, and the error is announced), the drawer's open
+ * state, and the listener that opens the drawer after "Agregar al carrito".
  */
 export function CartProvider({
-  lines,
+  lines: serverLines,
+  load = readCartAction,
   children,
-}: {
-  lines: CartLine[];
-  children: ReactNode;
-}) {
-  const [optimisticLines, applyChange] = useOptimistic(lines, applyCartChange);
-  const view = useMemo(() => toCartView(optimisticLines), [optimisticLines]);
+}: CartProviderProps) {
+  const selfLoading = serverLines === undefined;
+  const [loadedLines, setLoadedLines] = useState<CartLine[] | null>(null);
+  const lines = serverLines ?? loadedLines;
+  const [pending, applyChange] = useOptimistic(NO_CHANGES, appendChange);
+  const view = useMemo(
+    () =>
+      lines === null
+        ? null
+        : toCartView(pending.reduce(applyCartChange, lines)),
+    [lines, pending],
+  );
   const [open, setOpenState] = useState(false);
   const [status, setStatus] = useState<CartStatus | null>(null);
   const [focusStatus, setFocusStatus] = useState(false);
@@ -82,6 +119,27 @@ export function CartProvider({
     setShownPathname(pathname);
     setOpenState(false);
   }
+
+  // Only the answer to the latest request counts (navigations and changes
+  // can overlap).
+  const latestLoad = useRef(0);
+  const reload = useCallback(async () => {
+    if (!selfLoading) return;
+    latestLoad.current += 1;
+    const request = latestLoad.current;
+    try {
+      const fresh = await load();
+      if (request === latestLoad.current) setLoadedLines(fresh);
+    } catch {
+      // Keep what is shown; without a cart the header stays a link to
+      // /carrito, which reads the cart on the server.
+    }
+  }, [selfLoading, load]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: every navigation loads the cart again (`pathname` is the trigger).
+  useEffect(() => {
+    void reload();
+  }, [reload, pathname]);
 
   const setOpen = useCallback((next: boolean) => {
     setOpenState(next);
@@ -97,11 +155,17 @@ export function CartProvider({
     setOpenState(true);
   }, []);
 
-  const announceAdded = useCallback((result: AddToCartResult) => {
-    setStatus({ message: result.message, tone: "default" });
-    setFocusStatus(true);
-    setOpenState(true);
-  }, []);
+  const announceAdded = useCallback(
+    (result: AddToCartResult) => {
+      // The drawer opens with the cart as the server has it now.
+      void reload().then(() => {
+        setStatus({ message: result.message, tone: "default" });
+        setFocusStatus(true);
+        setOpenState(true);
+      });
+    },
+    [reload],
+  );
 
   const mutate = useCallback(
     (
@@ -120,16 +184,16 @@ export function CartProvider({
         }
         if (!result.ok) {
           setStatus({ message: result.message, tone: "error" });
-        } else {
-          setStatus(
-            announceSuccess
-              ? { message: result.message, tone: "default" }
-              : null,
-          );
+          return;
         }
+        // Before the optimistic change goes away: no flicker back.
+        await reload();
+        setStatus(
+          announceSuccess ? { message: result.message, tone: "default" } : null,
+        );
       });
     },
-    [applyChange],
+    [applyChange, reload],
   );
 
   const changeQuantity = useCallback(

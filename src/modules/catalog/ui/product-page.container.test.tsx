@@ -124,6 +124,30 @@ describe("ProductPageContainer", () => {
     );
   });
 
+  it("shows the favorites control of the route next to 'Comparar'", async () => {
+    render(
+      await ProductPageContainer({
+        slug: PRIME_100W,
+        searchParams: {},
+        favorite: (
+          <button type="submit" aria-pressed="false">
+            Guardar en favoritos
+          </button>
+        ),
+      }),
+    );
+
+    const favorite = screen.getByRole("button", {
+      name: "Guardar en favoritos",
+    });
+    const compare = screen.getByRole("button", { name: "Comparar" });
+    // Both in the options column, the favorite right after "Comparar".
+    expect(
+      compare.compareDocumentPosition(favorite) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it("describes the product and the selected offer as schema.org data", async () => {
     const { container } = await renderPage(NANO_45W, {
       variante: "ank-a121d-blk",

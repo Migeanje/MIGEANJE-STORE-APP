@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import type { ReactNode } from "react";
 import { getProduct } from "@/modules/catalog/application/get-product";
 import { listRelatedProducts } from "@/modules/catalog/application/list-related-products";
 import { getCatalogRepository } from "@/modules/catalog/infrastructure";
@@ -37,6 +38,11 @@ export type ProductPageContainerProps = {
    * then the button says the cart is not ready.
    */
   addToCart?: AddToCartAction;
+  /**
+   * The account's "Guardar en favoritos" control, composed by the route
+   * (the catalog never imports the account), shown after "Comparar".
+   */
+  favorite?: ReactNode;
 };
 
 /**
@@ -50,6 +56,7 @@ export async function ProductPageContainer({
   slug,
   searchParams,
   addToCart,
+  favorite,
 }: ProductPageContainerProps) {
   const repository = getCatalogRepository();
   const details = await getProduct(repository, slug);
@@ -94,6 +101,7 @@ export async function ProductPageContainer({
                 category: { slug: category.slug, name: category.name },
               }}
             />
+            {favorite}
           </>
         }
         purchase={

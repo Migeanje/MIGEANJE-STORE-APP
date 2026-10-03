@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import ProductPage, {
   generateMetadata,
@@ -12,19 +13,38 @@ vi.mock("@/modules/cart/ui/actions", () => ({
   addToCartAction: async () => ({ ok: true, message: "Agregado" }),
 }));
 
+vi.mock("@/modules/account/ui/favorite-toggle.container", () => ({
+  FavoriteToggleContainer: ({
+    slug,
+    returnTo,
+  }: {
+    slug: string;
+    returnTo: string;
+  }) => (
+    <span>
+      Favorito {slug} → {returnTo}
+    </span>
+  ),
+}));
+
 vi.mock("@/modules/catalog/ui/product-page.container", () => ({
   ProductPageContainer: ({
     slug,
     searchParams,
     addToCart,
+    favorite,
   }: {
     slug: string;
     searchParams: SearchParamsInput;
     addToCart?: AddToCartAction;
+    favorite?: ReactNode;
   }) => (
-    <p data-cart={addToCart === addToCartAction ? "conectado" : "no"}>
-      Producto {slug} {JSON.stringify(searchParams)}
-    </p>
+    <div>
+      <p data-cart={addToCart === addToCartAction ? "conectado" : "no"}>
+        Producto {slug} {JSON.stringify(searchParams)}
+      </p>
+      {favorite}
+    </div>
   ),
 }));
 
@@ -48,6 +68,14 @@ describe("ProductPage", () => {
 
     expect(
       screen.getByText('Producto prime-100w {"variante":"ank-a2688"}'),
+    ).toBeInTheDocument();
+  });
+
+  it("passes the account's favorites control, coming back to the product", async () => {
+    render(await ProductPage(props("prime-100w", { variante: "ank-a2688" })));
+
+    expect(
+      screen.getByText("Favorito prime-100w → /productos/prime-100w"),
     ).toBeInTheDocument();
   });
 
