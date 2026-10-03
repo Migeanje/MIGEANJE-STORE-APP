@@ -42,7 +42,8 @@ The design system (`f1-design-system`) is done and on `main`. F1 objectives 3 an
 | M5 | Cart module (domain, mock adapter, server actions, cookie) + cart drawer | Delegated (writer) | 2+ non-trivial files | Done — `07924cb`, `90f6d16`, `fb508d9`, `6376e3f` (branch `feat/f1-cart`); high risk → independent verifier |
 | M5.1 | Restore cached catalog pages (Engram #15 3.1): reading the cart cookie in the root layout made every route dynamic; fix via `cacheComponents` + Suspense around the cart slot, or a client-fetched cart count | Delegated (writer) | `next.config.ts` + layout | Pending |
 | M6 | Checkout 3 steps (contact + shipping with ubigeo, receipt boleta / factura flag off, simulated Culqi payment) + order confirmation | Delegated (writer) | 2+ non-trivial files | Done — `6a922df`, `6cf956f`, `d1c5431`, `9202edc`, `3a5af7c` (branch `feat/f1-checkout`); payments/PII → independent verifier |
-| M7 | Orders: public order status ("En importación") | Delegated (writer) | 2+ non-trivial files | Pending |
+| M6.1 | Payment guard from M6 verification: expected total posted by the pay form and `cart_changed` refusal; validate/build order and reserve its number before charging | Delegated (writer) | checkout + orders | In progress |
+| M7 | Orders: public order status ("En importación") | Delegated (writer) | 2+ non-trivial files | Done — `465ed20`, `6b411ff`, `1709039` (branch `feat/f1-orders`) |
 | M8 | Libro de Reclamaciones form + constancia | Delegated (writer) | 2+ non-trivial files | Pending |
 | M9 | Account (login/register/reset, profile, addresses, my orders, favorites) + trust & legal pages ("Cómo elegimos", terms, privacy, shipping & returns, warranties) | Delegated (writer) | 2+ non-trivial files | Pending |
 
@@ -111,6 +112,16 @@ Decisions made without the owner during the overnight run, within approved desig
 - M6: Any price/availability/limit change blocks payment (nothing charged, cart refreshed for review). No card data stored, not even last four digits. Demo mode accepts only the two test cards.
 - M6: Mobile phone = 9 digits starting with 9. Factura flag off → receipt step only confirms the boleta; flag in `src/shared/config/features.ts`.
 - M6: Confirmation cookie `mg_order` lasts 1 hour; afterwards the order opens with number + email. Delivery dates skip weekends but not public holidays. Shipping: Lima S/ 10, Callao S/ 12, rest S/ 20 (DRAFT). Mock ubigeo: 25 departamentos + subset of provincias/distritos (some Piura/Arequipa codes to verify against INEI).
+
+- M7: Lookup via POST (email never in URL), normalized numbers, neutral error, in-memory throttle 10 failures / 15 min per client key (real rate limiting belongs to the edge/backend). Success reuses `mg_order` (1 h) and redirects to `?numero=`; "Consultar otro pedido" clears it.
+- M7: Public page masks PII (first name + initial, street prefix, no DNI/RUC, `a•••@dominio`); number + email still open the full M6 confirmation, so masking is not stronger protection. Page `noindex`.
+- M7: Demo orders (mock only) for `demo@migeanje.pe`: `MG-2026-480315` (en importación), `MG-2026-275904` (en camino), `MG-2026-913628` (entregado).
+
+## M7 evidence
+
+- RED → GREEN per item. Writer verification: lint (552 files), typecheck, test (1,632 ×2), build, build-storybook ok. Headless: 19 axe checks with 0 violations, 81/81 flow checks (demo orders, real in-stock and backorder orders, no-JS lookup, throttle).
+- Parent spot check: `pnpm test` 1,632 passed; `pnpm lint` ok. Independent verifier to run on M6.1 + M7 together.
+- M6 independent verifier: **PASS**; MEDIUM (reproduced) charge can exceed the shown "Pagar" amount after a cart change in another tab → M6.1; card charged before order validation/save (retry could double charge) → M6.1 partial, idempotency key in F4.
 
 ## M6 evidence
 
