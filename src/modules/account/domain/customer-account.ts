@@ -48,6 +48,12 @@ export const customerAccountSchema = z
       .refine((email) => email === normalizeEmail(email), {
         message: "Expected a normalized (trimmed, lowercase) email",
       }),
+    /**
+     * When the customer proved they own the email (a link sent to it), or
+     * null. Registering proves nothing: anyone can type someone else's
+     * email. Only a verified account lists the orders placed with its email.
+     */
+    emailVerifiedAt: z.iso.datetime().nullable(),
     /** Mobile number without +51, or null. */
     phone: z
       .string()
@@ -90,7 +96,16 @@ export type ProfileChanges = Pick<
   "firstName" | "lastName" | "phone"
 >;
 
-/** New names and phone; the email never changes here. */
+/**
+ * Whether the customer has proven they own the account's email. False for
+ * anything but a verification date (an account stored before the field
+ * existed included).
+ */
+export function isEmailVerified(account: CustomerAccount): boolean {
+  return typeof account.emailVerifiedAt === "string";
+}
+
+/** New names and phone; the email (and its verification) never changes here. */
 export function updateProfile(
   account: CustomerAccount,
   changes: ProfileChanges,

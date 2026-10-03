@@ -51,6 +51,8 @@ describe("registerCustomer", () => {
       firstName: "Luis",
       lastName: "Rojas",
       email: "luis@correo.pe",
+      // Registering does not prove the email is Luis's.
+      emailVerifiedAt: null,
       phone: null,
       document: null,
       addresses: [],

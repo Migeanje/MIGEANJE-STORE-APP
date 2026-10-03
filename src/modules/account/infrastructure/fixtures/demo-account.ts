@@ -16,6 +16,8 @@ export const DEMO_ACCOUNT: CustomerAccount = {
   firstName: "Lucía",
   lastName: "Demo",
   email: "demo@migeanje.pe",
+  // Verified, so "Mis pedidos" lists the demo orders.
+  emailVerifiedAt: "2026-09-15T15:05:00.000Z",
   phone: "900000000",
   document: { type: "dni", number: "00000000" },
   addresses: [

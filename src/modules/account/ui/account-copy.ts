@@ -174,6 +174,18 @@ export const ORDERS_COPY = {
   items: "Productos",
   track: "Seguir pedido",
   detail: "Ver detalle",
+  /**
+   * DRAFT: an account whose email is not verified lists no orders
+   * (registering does not prove the email is yours). Verification by email
+   * arrives with Resend (F3/F5); in the mock only the demo account is
+   * verified.
+   */
+  unverified: {
+    title: "Para ver tus pedidos, primero verifica tu correo.",
+    description:
+      "Mientras tanto, puedes seguir tu pedido con su número y tu correo.",
+    trackAction: "Seguir un pedido",
+  },
 } as const;
 
 export const FAVORITES_COPY = {

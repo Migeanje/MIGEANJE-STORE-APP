@@ -5,6 +5,7 @@ import {
   anAccount,
   anAddress,
   anArequipaAddress,
+  EMAIL_VERIFIED_AT,
 } from "@/modules/account/testing/account-builders";
 import {
   addAddress,
@@ -14,6 +15,7 @@ import {
   customerAccountSchema,
   defaultAddress,
   hasFavorite,
+  isEmailVerified,
   MAX_ADDRESSES,
   MAX_FAVORITES,
   removeAddress,
@@ -57,6 +59,8 @@ describe("customerAccountSchema", () => {
     ],
     ["the same favorite twice", { favorites: ["a-b", "a-b"] }],
     ["a favorite that is not a slug", { favorites: ["../../etc"] }],
+    ["a verification that is not a date", { emailVerifiedAt: "ayer" }],
+    ["a verification that is not text", { emailVerifiedAt: true }],
   ])("refuses %s", (_name, change) => {
     expect(
       customerAccountSchema.safeParse({ ...withTwoAddresses(), ...change })
@@ -70,6 +74,34 @@ describe("customerAccountSchema", () => {
         anAccount({ defaultAddressId: addressId(1) }),
       ).success,
     ).toBe(false);
+  });
+
+  it("needs to know whether the email is verified", () => {
+    const withoutVerification = Object.fromEntries(
+      Object.entries(anAccount()).filter(([key]) => key !== "emailVerifiedAt"),
+    );
+    expect(customerAccountSchema.safeParse(withoutVerification).success).toBe(
+      false,
+    );
+    expect(
+      customerAccountSchema.parse(
+        anAccount({ emailVerifiedAt: EMAIL_VERIFIED_AT }),
+      ).emailVerifiedAt,
+    ).toBe(EMAIL_VERIFIED_AT);
+  });
+});
+
+describe("isEmailVerified", () => {
+  it("is true only once the email has a verification date", () => {
+    expect(isEmailVerified(anAccount())).toBe(false);
+    expect(
+      isEmailVerified(anAccount({ emailVerifiedAt: EMAIL_VERIFIED_AT })),
+    ).toBe(true);
+  });
+
+  it("is false for an account stored before the field existed", () => {
+    const legacy = { ...anAccount(), emailVerifiedAt: undefined };
+    expect(isEmailVerified(legacy as never)).toBe(false);
   });
 });
 
@@ -88,6 +120,17 @@ describe("updateProfile", () => {
       phone: null,
     });
     expect(account.firstName).toBe("Ana");
+  });
+
+  it("never changes whether the email is verified", () => {
+    const verified = anAccount({ emailVerifiedAt: EMAIL_VERIFIED_AT });
+    expect(
+      updateProfile(verified, {
+        firstName: "Ana",
+        lastName: "Pérez",
+        phone: null,
+      }).emailVerifiedAt,
+    ).toBe(EMAIL_VERIFIED_AT);
   });
 });
 

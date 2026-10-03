@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { listAccountOrders } from "@/modules/account/application/account-orders";
 import {
   type AccountAddress,
   type CustomerAccount,
@@ -33,7 +34,7 @@ import type {
 } from "./account-extensions";
 import type { AddressField } from "./account-forms";
 import { AccountNavigation } from "./account-navigation";
-import { ACCOUNT_PATHS, noticeFrom } from "./account-paths";
+import { ACCOUNT_PATHS, noticeFrom, TRACK_ORDER_PATH } from "./account-paths";
 import { requireSignedInAccount } from "./account-session";
 import {
   deleteAddressAction,
@@ -119,6 +120,22 @@ function NoOrders({ headingLevel }: { headingLevel: 2 | 3 }) {
   );
 }
 
+/** "Mis pedidos" of an unverified email: no orders, public tracking instead. */
+function UnverifiedOrders() {
+  return (
+    <EmptyState
+      title={ORDERS_COPY.unverified.title}
+      description={ORDERS_COPY.unverified.description}
+    >
+      <Button asChild variant="secondary">
+        <Link href={TRACK_ORDER_PATH}>
+          {ORDERS_COPY.unverified.trackAction}
+        </Link>
+      </Button>
+    </EmptyState>
+  );
+}
+
 /** Server Component: /cuenta, the account's start page. */
 export async function AccountDashboardContainer({
   searchParams,
@@ -128,7 +145,7 @@ export async function AccountDashboardContainer({
   orders: AccountOrdersLookup;
 }) {
   const account = await requireSignedInAccount(ACCOUNT_PATHS.home);
-  const recent = (await orders(account.email)).slice(0, RECENT_ORDERS);
+  const found = await listAccountOrders(account, orders);
   const main = defaultAddress(account);
 
   return (
@@ -142,12 +159,24 @@ export async function AccountDashboardContainer({
         <Heading id="cuenta-pedidos" level={2}>
           {DASHBOARD_COPY.recentOrders}
         </Heading>
-        {recent.length === 0 ? (
+        {found.status === "email_unverified" ? (
+          <>
+            <Text tone="muted">
+              {ORDERS_COPY.unverified.title}{" "}
+              {ORDERS_COPY.unverified.description}
+            </Text>
+            <p>
+              <Link href={TRACK_ORDER_PATH} className={linkClassName}>
+                {ORDERS_COPY.unverified.trackAction}
+              </Link>
+            </p>
+          </>
+        ) : found.orders.length === 0 ? (
           <Text tone="muted">{DASHBOARD_COPY.noOrders}</Text>
         ) : (
           <>
             <div className="grid gap-4 xl:grid-cols-2">
-              {recent.map((order) => (
+              {found.orders.slice(0, RECENT_ORDERS).map((order) => (
                 <OrderSummaryCard
                   key={order.number}
                   order={order}
@@ -368,18 +397,20 @@ export async function AccountOrdersContainer({
   orders: AccountOrdersLookup;
 }) {
   const account = await requireSignedInAccount(ACCOUNT_PATHS.orders);
-  const list = await orders(account.email);
+  const found = await listAccountOrders(account, orders);
   return (
     <AccountPage
       title={ORDERS_COPY.title}
       description={ORDERS_COPY.description}
       nav={<AccountNavigation current={ACCOUNT_PATHS.orders} />}
     >
-      {list.length === 0 ? (
+      {found.status === "email_unverified" ? (
+        <UnverifiedOrders />
+      ) : found.orders.length === 0 ? (
         <NoOrders headingLevel={2} />
       ) : (
         <div className="grid gap-4 xl:grid-cols-2">
-          {list.map((order) => (
+          {found.orders.map((order) => (
             <OrderSummaryCard
               key={order.number}
               order={order}

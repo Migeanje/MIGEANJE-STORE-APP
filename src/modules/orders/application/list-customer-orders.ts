@@ -4,8 +4,11 @@ import type { OrderRepository } from "./ports";
 
 /**
  * The orders placed with an email (an account's "Mis pedidos"), newest
- * first. Only for an email the customer has proven to own (a signed-in
- * account): it is not throttled like the public lookup by number + email.
+ * first. Only for an email the customer has proven to own: a signed-in
+ * account whose email is verified (the account's `listAccountOrders` checks
+ * it before calling this). Being signed in is not enough, since registering
+ * does not prove the email. It is not throttled like the public lookup by
+ * number + email.
  */
 export async function listCustomerOrders(
   orders: OrderRepository,

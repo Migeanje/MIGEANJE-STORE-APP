@@ -22,7 +22,8 @@ export type AccountOrderSummary = {
 
 /**
  * The orders placed with an email the account owns, newest first. Only
- * called with the signed-in account's email.
+ * called through `listAccountOrders` (application/account-orders.ts), with
+ * the signed-in account's email once it is verified.
  */
 export type AccountOrdersLookup = (
   email: string,

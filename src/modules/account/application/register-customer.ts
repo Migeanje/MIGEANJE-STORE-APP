@@ -41,7 +41,9 @@ export type RegisterCustomerResult =
 
 /**
  * Creates an account (validated, password hashed with its own salt) and
- * signs it in, ending this browser's previous session.
+ * signs it in, ending this browser's previous session. The email starts
+ * unverified, so the account lists no orders yet (`listAccountOrders`):
+ * verifying it by email arrives with the email provider (Resend, F3/F5).
  *
  * An email that already has an account is refused ("email_taken": the form
  * has to say so) and counts as a failed attempt for the client, like a
@@ -75,6 +77,7 @@ export async function registerCustomer(
     firstName: input.firstName,
     lastName: input.lastName,
     email: normalizeEmail(input.email),
+    emailVerifiedAt: null,
     phone: input.phone,
     document: null,
     addresses: [],

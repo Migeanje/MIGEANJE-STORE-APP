@@ -5,6 +5,7 @@ import {
   anAccount,
   anAddress,
   anArequipaAddress,
+  EMAIL_VERIFIED_AT,
 } from "@/modules/account/testing/account-builders";
 import {
   aUbigeoTree,
@@ -101,6 +102,7 @@ const findProducts = vi.fn<FavoriteProductsLookup>(async (slugs) =>
 beforeEach(() => {
   session.account = anAccount({
     firstName: "Lucía",
+    emailVerifiedAt: EMAIL_VERIFIED_AT,
     addresses: [anAddress(), anArequipaAddress()],
     defaultAddressId: addressId(1),
     favorites: ["soundcore-liberty-5", "ya-no-existe"],
@@ -153,6 +155,28 @@ describe("AccountDashboardContainer", () => {
     expect(
       screen.getByText("Todavía no tienes pedidos con este correo."),
     ).toBeInTheDocument();
+  });
+
+  it("shows no orders until the email is verified, only how to track one", async () => {
+    session.account = anAccount({ firstName: "Lucía" });
+
+    const { container } = render(
+      await AccountDashboardContainer({ searchParams: {}, orders: findOrders }),
+    );
+
+    expect(findOrders).not.toHaveBeenCalled();
+    const recent = screen.getByRole("region", { name: "Pedidos recientes" });
+    expect(within(recent).queryAllByRole("article")).toHaveLength(0);
+    expect(recent).toHaveTextContent(
+      "Para ver tus pedidos, primero verifica tu correo. Mientras tanto, puedes seguir tu pedido con su número y tu correo.",
+    );
+    expect(
+      within(recent).getByRole("link", { name: "Seguir un pedido" }),
+    ).toHaveAttribute("href", "/pedidos/seguimiento");
+    expect(
+      within(recent).queryByRole("link", { name: "Ver todos mis pedidos" }),
+    ).toBeNull();
+    await expectNoAxeViolations(container);
   });
 });
 
@@ -269,6 +293,32 @@ describe("AccountOrdersContainer", () => {
         name: "Todavía no tienes pedidos con este correo.",
       }),
     ).toBeInTheDocument();
+  });
+
+  it("lists nothing until the email is verified, only how to track an order", async () => {
+    session.account = anAccount();
+
+    const { container } = render(
+      await AccountOrdersContainer({ orders: findOrders }),
+    );
+
+    expect(findOrders).not.toHaveBeenCalled();
+    expect(screen.queryAllByRole("article")).toHaveLength(0);
+    expect(
+      screen.getByRole("heading", {
+        level: 2,
+        name: "Para ver tus pedidos, primero verifica tu correo.",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Mientras tanto, puedes seguir tu pedido con su número y tu correo.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Seguir un pedido" }),
+    ).toHaveAttribute("href", "/pedidos/seguimiento");
+    await expectNoAxeViolations(container);
   });
 });
 

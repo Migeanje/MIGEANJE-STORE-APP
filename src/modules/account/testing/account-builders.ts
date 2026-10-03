@@ -16,6 +16,8 @@ import { createAttemptLimiter } from "@/shared/lib/attempt-limiter";
 
 export const ACCOUNT_ID = "6f1c2b3a-4d5e-4f60-8a7b-9c0d1e2f3a4b";
 export const NOW = new Date("2026-10-03T15:00:00Z");
+/** `anAccount({ emailVerifiedAt: EMAIL_VERIFIED_AT })`: a verified email. */
+export const EMAIL_VERIFIED_AT = "2026-09-01T15:30:00.000Z";
 
 /** Address ids are UUIDs. */
 export function addressId(n: number): string {
@@ -58,7 +60,7 @@ export function anArequipaAddress(
   });
 }
 
-/** Ana, without addresses or favorites. */
+/** Ana, without addresses or favorites; her email is not verified yet. */
 export function anAccount(
   overrides: Partial<CustomerAccount> = {},
 ): CustomerAccount {
@@ -67,6 +69,7 @@ export function anAccount(
     firstName: "Ana",
     lastName: "Pérez Quispe",
     email: "ana@correo.pe",
+    emailVerifiedAt: null,
     phone: "987654321",
     document: null,
     addresses: [],
