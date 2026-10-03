@@ -10,6 +10,7 @@ import {
   productPrice,
 } from "@/modules/catalog/domain/product";
 import type { ProductCardProps } from "@/shared/ui/molecules/product-card";
+import { leadTimeLabel } from "./catalog-copy";
 import { productPath } from "./catalog-url";
 
 const MAX_CARD_SPECS = 3;
@@ -24,14 +25,8 @@ export function availabilityLabel(availability: Availability): string {
   switch (availability.status) {
     case "in_stock":
       return "En stock";
-    case "backorder": {
-      const { min, max } = availability.leadTimeDays;
-      const days =
-        min === max
-          ? `${min} ${min === 1 ? "día" : "días"}`
-          : `${min}–${max} días`;
-      return `En importación · llega en ${days}`;
-    }
+    case "backorder":
+      return `En importación · llega en ${leadTimeLabel(availability.leadTimeDays)}`;
     case "unavailable":
       return "Agotado";
   }

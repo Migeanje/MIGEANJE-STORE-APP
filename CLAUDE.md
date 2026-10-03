@@ -89,6 +89,18 @@ src/
 - A Server Component cannot read a non-component export of a `"use client"` module (it gets a client reference, not the value): e.g. `chipClassName` is only used from client components (`ActiveFilters`).
 - Motion: `ScrollReveal` (organism) reveals sections once on scroll under `gsap.matchMedia("(prefers-reduced-motion: no-preference)")` and never hides a section already in view; the home hero glow "warms up" with CSS `starting:` only.
 
+## Product page and comparator
+
+- `/productos/[slug]` (`catalog/ui/product-page.container.tsx`): `generateStaticParams` lists the 19 products, but the page reads `?variante=<sku>` (lowercase SKU, parsed case-insensitively in `catalog-url.ts`), so it renders per request like the category page. The default variant (`defaultVariant`: best availability, then lowest price) has no param; the canonical URL is the bare product path.
+- Variant options are hierarchical (`domain/variant-selection.ts`): a value of option N is offered only with the selected values of options 0..N-1, so the first option is never blocked; a choice leads to the closest variant. Blocked values are not links and say why ("No disponible con chip ...", "Agotado"). The selector is plain links (`replace`, `scroll={false}`, `prefetch={false}`): shareable and works without JavaScript.
+- Swatches: `VariantSelector` accepts an optional CSS color per value, but product data has none yet (no color literals in code); color options render as text-labelled segmented options.
+- Buy box: in stock up to 5 units, backorder up to 2 (`MAX_QUANTITY`), with the backorder explainer (DRAFT copy in `catalog-copy.ts`); unavailable products get the client-only "Avísame cuando llegue" mock (Zod email check, nothing sent).
+- Cart extension point (M5): `catalog/ui/add-to-cart.ts` defines `AddToCartAction` (`(previous, formData) => Promise<{ ok, message }>`, for `useActionState`) and the form fields (`sku`, `cantidad`, parsed by `parseAddToCartForm`). The cart module exports a `"use server"` action of that type and the route passes it as `<ProductPageContainer addToCart={...} />`; the form posts to it, so it also works before hydration. Without it the button says the cart is not ready.
+- JSON-LD: `serializeJsonLd` (`shared/lib/json-ld.ts`) escapes `<`, `>`, `&`, U+2028/9 for `dangerouslySetInnerHTML`; prices as decimals via `toDecimalAmount` (`shared/lib/money.ts`). URLs are relative until a site URL exists.
+- Compare tray (`catalog/ui/compare-tray*.ts(x)`): per browser in `localStorage` (`migeanje:comparar`), every access wrapped in try/catch with an in-memory fallback; max 4 products of one category; adding another category asks inline to start over. `CompareToggle` is only on the product page (a button inside `ProductCard` would break the stretched link). `CompareTrayBar` (discovery layout) sticks to the bottom of `<main>` and hides on `/comparar`, whose `CompareTraySync` makes the tray follow the URL.
+- `/comparar?productos=a,b&diferencias=si` (`compare-page.container.tsx`, `noindex`): every `ProductComparisonError` reason is a friendly `EmptyState` with next steps (`compare-page.view.ts`). The table scrolls inside its own focusable region (`data-lenis-prevent-horizontal`) with a sticky label column; the page never scrolls sideways at 375px.
+- `next/image` with the SVG placeholders needs no config: Next sets `unoptimized` automatically when `src` ends in `.svg` (default loader). Never enable `dangerouslyAllowSVG`.
+
 ## Design tokens
 
 - All tokens live in `src/shared/ui/tokens/tokens.css` (imported by `src/app/globals.css`).

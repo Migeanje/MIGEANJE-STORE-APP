@@ -7,10 +7,15 @@ import {
   type CategoryQuery,
   categoryHref,
   categorySearchParams,
+  compareHref,
+  compareSlugsParam,
+  differencesOnlyParam,
   parseCategorySearchParams,
+  productHref,
   RESERVED_PARAMS,
   searchQueryParam,
   specParams,
+  variantSkuParam,
 } from "./catalog-url";
 
 function mockCategory(slug: string): Category {
@@ -300,5 +305,95 @@ describe("searchQueryParam", () => {
     [new URLSearchParams("q=%20gan%20"), " gan "],
   ])("reads %j as %j", (input, expected) => {
     expect(searchQueryParam(input)).toBe(expected);
+  });
+});
+
+describe("productHref", () => {
+  it("is the product path without a variant", () => {
+    expect(productHref("prime-100w")).toBe("/productos/prime-100w");
+  });
+
+  it("adds the variant SKU in lowercase", () => {
+    expect(productHref("nano-45w", "ANK-A121D-BLK")).toBe(
+      "/productos/nano-45w?variante=ank-a121d-blk",
+    );
+  });
+});
+
+describe("variantSkuParam", () => {
+  it("reads the first `variante` as an uppercase SKU", () => {
+    expect(variantSkuParam({ variante: ["ank-a121d-blk", "x"] })).toBe(
+      "ANK-A121D-BLK",
+    );
+    expect(variantSkuParam(new URLSearchParams("variante=ANK-A2688"))).toBe(
+      "ANK-A2688",
+    );
+  });
+
+  it.each([
+    [{}],
+    [{ variante: "" }],
+    [{ variante: "no valid" }],
+    [{ variante: "-abc" }],
+    [{ variante: "a".repeat(65) }],
+  ])("drops a missing or invalid SKU: %j", (input) => {
+    expect(variantSkuParam(input)).toBeUndefined();
+  });
+});
+
+describe("compareSlugsParam", () => {
+  it("reads comma-separated and repeated slugs, in order, without duplicates", () => {
+    expect(
+      compareSlugsParam({ productos: ["prime-100w, nano-45w", "prime-100w"] }),
+    ).toEqual(["prime-100w", "nano-45w"]);
+    expect(
+      compareSlugsParam(new URLSearchParams("productos=a,b&productos=c")),
+    ).toEqual(["a", "b", "c"]);
+  });
+
+  it("lowercases slugs and drops empty and oversized entries", () => {
+    expect(
+      compareSlugsParam({ productos: `Prime-100W,,  ,${"x".repeat(101)},b` }),
+    ).toEqual(["prime-100w", "b"]);
+  });
+
+  it("keeps at most 10 entries, so the use case reports the count", () => {
+    const many = Array.from({ length: 12 }, (_, index) => `p${index}`);
+
+    expect(compareSlugsParam({ productos: many.join(",") })).toHaveLength(10);
+  });
+
+  it("is empty without the param", () => {
+    expect(compareSlugsParam({})).toEqual([]);
+  });
+});
+
+describe("differencesOnlyParam", () => {
+  it("is on only with diferencias=si", () => {
+    expect(differencesOnlyParam({ diferencias: "si" })).toBe(true);
+    expect(differencesOnlyParam({ diferencias: "no" })).toBe(false);
+    expect(differencesOnlyParam({})).toBe(false);
+  });
+});
+
+describe("compareHref", () => {
+  it("joins the slugs with readable commas", () => {
+    expect(compareHref(["prime-100w", "nano-45w"])).toBe(
+      "/comparar?productos=prime-100w,nano-45w",
+    );
+  });
+
+  it("adds the differences toggle", () => {
+    expect(compareHref(["a", "b"], { differencesOnly: true })).toBe(
+      "/comparar?productos=a,b&diferencias=si",
+    );
+  });
+
+  it("encodes anything that is not a slug", () => {
+    expect(compareHref(["a&b", "c"])).toBe("/comparar?productos=a%26b,c");
+  });
+
+  it("is the bare comparator path without products", () => {
+    expect(compareHref([])).toBe("/comparar");
   });
 });

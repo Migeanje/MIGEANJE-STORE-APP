@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assertMinorUnits, formatPEN } from "./money";
+import { assertMinorUnits, formatPEN, toDecimalAmount } from "./money";
 
 // es-PE puts a no-break space (U+00A0) between "S/" and the amount.
 const NBSP = "\u00A0";
@@ -83,5 +83,21 @@ describe("assertMinorUnits", () => {
 
   it("names the rejected value in the error message", () => {
     expect(() => assertMinorUnits(129.9)).toThrow(/129\.9/);
+  });
+});
+
+describe("toDecimalAmount", () => {
+  it.each([
+    [0, "0.00"],
+    [5, "0.05"],
+    [12990, "129.90"],
+    [649890, "6498.90"],
+    [Number.MAX_SAFE_INTEGER, "90071992547409.91"],
+  ])("writes %i céntimos as the plain decimal %s", (minor, decimal) => {
+    expect(toDecimalAmount(minor)).toBe(decimal);
+  });
+
+  it.each([129.9, -1, Number.NaN])("throws a RangeError for %s", (minor) => {
+    expect(() => toDecimalAmount(minor)).toThrow(RangeError);
   });
 });

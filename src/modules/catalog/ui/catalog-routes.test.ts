@@ -6,6 +6,9 @@ import {
   brandStaticParams,
   categoryMetadata,
   categoryStaticParams,
+  compareMetadata,
+  productMetadata,
+  productStaticParams,
   searchMetadata,
 } from "./catalog-routes";
 
@@ -74,6 +77,46 @@ describe("searchMetadata", () => {
   it("falls back to a plain title without a query", () => {
     expect(searchMetadata({})).toEqual({
       title: "Buscar productos",
+      robots: { index: false },
+    });
+  });
+});
+
+describe("productStaticParams", () => {
+  it("lists all 19 product slugs", async () => {
+    const params = await productStaticParams();
+
+    expect(params).toEqual(mockCatalog.products.map(({ slug }) => ({ slug })));
+    expect(params).toHaveLength(19);
+  });
+});
+
+describe("productMetadata", () => {
+  it("titles the page with brand and name, describes it with the summary and points to the bare product path", async () => {
+    const product = mockCatalog.products.find(
+      ({ slug }) => slug === "anker-prime-charger-100w-3-puertos",
+    );
+
+    expect(await productMetadata("anker-prime-charger-100w-3-puertos")).toEqual(
+      {
+        title: "Anker Prime Charger 100W, 3 puertos",
+        description: product?.summary,
+        alternates: {
+          canonical: "/productos/anker-prime-charger-100w-3-puertos",
+        },
+      },
+    );
+  });
+
+  it("is empty for an unknown product (the page answers 404)", async () => {
+    expect(await productMetadata("no-existe")).toEqual({});
+  });
+});
+
+describe("compareMetadata", () => {
+  it("keeps the comparator out of search engines", () => {
+    expect(compareMetadata).toEqual({
+      title: "Comparar productos",
       robots: { index: false },
     });
   });

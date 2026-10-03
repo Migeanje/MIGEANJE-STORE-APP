@@ -419,6 +419,83 @@ export function productPath(slug: string): string {
   return `/productos/${slug}`;
 }
 
+/*
+ * Product page: `?variante=ank-a121d-blk` selects a variant by its SKU (in
+ * lowercase; parsed case-insensitively). One param that always names one
+ * real variant: shareable, works without JavaScript (the selector is plain
+ * links) and never describes a combination that does not exist. The default
+ * variant has no param, so the product path stays canonical.
+ */
+export const VARIANT_PARAM = "variante";
+
+const MAX_SKU_LENGTH = 64;
+const SKU_PARAM = /^[a-z0-9]+(?:-[a-z0-9]+)*$/i;
+
+/** A product page URL, optionally with a variant. */
+export function productHref(slug: string, sku?: string): string {
+  const path = productPath(slug);
+  return sku === undefined
+    ? path
+    : `${path}?${VARIANT_PARAM}=${encodeURIComponent(sku.toLowerCase())}`;
+}
+
+/** The SKU in `variante` (uppercase), or undefined when missing or invalid. */
+export function variantSkuParam(input: SearchParamsInput): string | undefined {
+  const value = readAll(input, VARIANT_PARAM)[0];
+  if (
+    value === undefined ||
+    value.length > MAX_SKU_LENGTH ||
+    !SKU_PARAM.test(value)
+  ) {
+    return undefined;
+  }
+  return value.toUpperCase();
+}
+
+/*
+ * Comparator: `/comparar?productos=a,b,c` (comma-separated; repeated params
+ * work too) and `diferencias=si` to show only the rows that differ.
+ */
+export const COMPARE_PATH = "/comparar";
+export const COMPARE_PARAM = "productos";
+export const DIFFERENCES_PARAM = "diferencias";
+
+const MAX_COMPARE_ENTRIES = 10;
+const MAX_COMPARE_ENTRY_LENGTH = 100;
+
+/**
+ * The slugs to compare, in order: lowercased, deduplicated, empty and
+ * oversized entries dropped, at most 10 (the use case reports a wrong count
+ * or unknown slugs as a friendly state).
+ */
+export function compareSlugsParam(input: SearchParamsInput): string[] {
+  const entries = readAll(input, COMPARE_PARAM)
+    .flatMap((value) => value.split(","))
+    .map((entry) => entry.trim().toLowerCase())
+    .filter(
+      (entry) => entry !== "" && entry.length <= MAX_COMPARE_ENTRY_LENGTH,
+    );
+  return [...new Set(entries)].slice(0, MAX_COMPARE_ENTRIES);
+}
+
+/** True with `diferencias=si`. */
+export function differencesOnlyParam(input: SearchParamsInput): boolean {
+  return readAll(input, DIFFERENCES_PARAM).includes(TOGGLE_VALUE);
+}
+
+/** The comparator URL, with readable commas between the slugs. */
+export function compareHref(
+  slugs: readonly string[],
+  { differencesOnly = false }: { differencesOnly?: boolean } = {},
+): string {
+  if (slugs.length === 0) return COMPARE_PATH;
+  const list = slugs.map((slug) => encodeURIComponent(slug)).join(",");
+  const differences = differencesOnly
+    ? `&${DIFFERENCES_PARAM}=${TOGGLE_VALUE}`
+    : "";
+  return `${COMPARE_PATH}?${COMPARE_PARAM}=${list}${differences}`;
+}
+
 export const SEARCH_PATH = "/buscar";
 
 /** The category page URL for a query, with its canonical query string. */

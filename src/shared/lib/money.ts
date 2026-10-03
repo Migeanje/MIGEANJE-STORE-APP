@@ -26,13 +26,20 @@ export function assertMinorUnits(minor: number): void {
  * non-negative safe integer.
  */
 export function formatPEN(minor: number): string {
+  // Intl formats numeric strings without going through a float, so the
+  // céntimos stay exact (`minor / 100` drifts near MAX_SAFE_INTEGER).
+  return PEN.format(toDecimalAmount(minor) as Intl.StringNumericLiteral);
+}
+
+/**
+ * Céntimos as a plain decimal string in soles, e.g. 12990 -> "129.90": the
+ * format of machine-readable prices (schema.org offers, payment APIs). Integer
+ * math only. Throws a RangeError like `formatPEN`.
+ */
+export function toDecimalAmount(minor: number): string {
   assertMinorUnits(minor);
-  // Integer math plus a decimal string keeps the céntimos exact: Intl formats
-  // numeric strings without going through a float (`minor / 100` drifts near
-  // MAX_SAFE_INTEGER). `+ 0` turns -0 into 0, so it never prints "-S/".
+  // `+ 0` turns -0 into 0, so it never prints "-0.00".
   const cents = (minor % 100) + 0;
   const soles = (minor - cents) / 100 + 0;
-  const decimal =
-    `${soles}.${String(cents).padStart(2, "0")}` as Intl.StringNumericLiteral;
-  return PEN.format(decimal);
+  return `${soles}.${String(cents).padStart(2, "0")}`;
 }

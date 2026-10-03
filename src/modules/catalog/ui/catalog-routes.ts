@@ -7,6 +7,7 @@ import { productCountLabel, searchTitle } from "./catalog-copy";
 import {
   brandPath,
   categoryPath,
+  productPath,
   type SearchParamsInput,
   searchQueryParam,
 } from "./catalog-url";
@@ -67,3 +68,30 @@ export function searchMetadata(searchParams: SearchParamsInput): Metadata {
     robots: { index: false },
   };
 }
+
+/** Every product, prerendered at build time (see the product page route). */
+export async function productStaticParams(): Promise<{ slug: string }[]> {
+  const { items } = await getCatalogRepository().listProducts();
+  return items.map(({ slug }) => ({ slug }));
+}
+
+/**
+ * Title ("Anker Prime Charger 100W, 3 puertos"), description (the summary)
+ * and canonical URL (the bare product path: variants share it) of a product
+ * page; empty for an unknown slug, which answers 404.
+ */
+export async function productMetadata(slug: string): Promise<Metadata> {
+  const product = await getCatalogRepository().getProductBySlug(slug);
+  if (!product) return {};
+  return {
+    title: `${product.brand.name} ${product.name}`,
+    description: product.summary,
+    alternates: { canonical: productPath(slug) },
+  };
+}
+
+/** The comparator depends on its query: never indexed. */
+export const compareMetadata: Metadata = {
+  title: "Comparar productos",
+  robots: { index: false },
+};
