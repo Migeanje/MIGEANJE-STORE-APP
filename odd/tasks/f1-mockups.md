@@ -37,7 +37,7 @@ The design system (`f1-design-system`) is done and on `main`. F1 objectives 3 an
 | M0 | F1 follow-ups: QuantityStepper uncontrolled max-lowering sync + draft/click test, FormField empty `controlId`, SpecList duplicate labels, `.env.example` + gitignore exception | Delegated (writer) | 3+ files | Done — in owner commit `4124624`; `.env.example` created by the owner and committed as `38a063e` |
 | M1 | Catalog module: domain (Product, Variant, Category spec schema, Brand, Availability, ExpertReview) + Zod, `CatalogRepository` port, use cases (list/filter by category, get by slug, compare, search), mock adapter with the 19 fixtures (verify conflicting specs), `DATA_SOURCE` composition root | Delegated (writer) | 2+ non-trivial files | Done — `4124624` (partial, owner) + `de66e33` |
 | M2 | App shell: layout, header (nav, SearchBar, cart button), footer (legal links, Libro de Reclamaciones), motion providers (Lenis/GSAP on discovery only), 404/error | Delegated (writer) | 2+ non-trivial files | Done — `5399153`, `bd23170`, `b2cbbbf` (branch `feat/f1-app-shell`) |
-| M3 | Discovery: Home, Category (spec filters), Brand, Search results | Delegated (writer) | 2+ non-trivial files | Pending |
+| M3 | Discovery: Home, Category (spec filters), Brand, Search results | Delegated (writer) | 2+ non-trivial files | Done — `fa9cdb7`, `55bbb1e`, `e441956`, `bf30562`, `31b1c49` (branch `feat/f1-discovery`) |
 | M4 | Product page (gallery, variants, specs, availability, expert review rubric, compare) + Comparator | Delegated (writer) | 2+ non-trivial files | Pending |
 | M5 | Cart module (domain, mock adapter, server actions, cookie) + cart drawer | Delegated (writer) | 2+ non-trivial files | Pending |
 | M6 | Checkout 3 steps (contact + shipping with ubigeo, receipt boleta / factura flag off, simulated Culqi payment) + order confirmation | Delegated (writer) | 2+ non-trivial files | Pending |
@@ -88,6 +88,19 @@ Decisions made without the owner during the overnight run, within approved desig
 - M2: Sheet primitive written by hand from shadcn's source (no CLI, to protect `globals.css`).
 - M2: Desktop wordmark at `text-body` weight 500; category nav in a second header row.
 
+- M3: URL format — repeated params for lists; no-JS range fields `<spec>-desde`/`<spec>-hasta`; single number = exact value; param names in `SPEC_PARAM_NAMES` (e.g. `anc` → `cancelacion-ruido`).
+- M3: Canonical URLs built on the client (Zod in the category bundle); no redirects for raw no-JS URLs.
+- M3: Filter groups that cannot narrow results are hidden; boolean specs grouped under "Características"; three sorts (relevancia, precio asc/desc).
+- M3: Native checkboxes (Radix checkbox does not submit before hydration); no-JS filters via Tailwind `noscript:` + `#filtros` target.
+- M3: "Destacados" = one in-stock product per category first; hero CTA → first category; hero, "Por qué Migeanje" and "En importación" copy marked DRAFT.
+- M3: Brand descriptions generated from data; brand groups link to the category filtered by brand. Search results `noindex`; title template `%s · Migeanje Store`.
+
+## M3 evidence
+
+- RED → GREEN per item (13 failing advisory tests first). Writer verification: install, lint (268 files), typecheck, test (839), build, build-storybook ok. Headless axe: 0 violations on 6 pages × 375/1280px × normal/reduced motion; no horizontal scroll at 375px; filters and sort work without JS.
+- Parent spot check: `pnpm test` 839 passed; `pnpm lint` ok. Risk tier: medium (`ad89fd1..HEAD`, 6,900 lines).
+- Open: without JS, `/buscar` shows the empty header search (Suspense fallback); nothing links to `/marcas/*` yet (M4 should); pagination never appears with 12 per page and current data.
+
 ## M2 evidence
 
 - RED → GREEN: catalog advisory fixes (4 failing tests first); every new test file observed RED first. Deps: `gsap@3.15.0`, `lenis@1.3.26`.
@@ -97,4 +110,4 @@ Decisions made without the owner during the overnight run, within approved desig
 
 ## Next step
 
-M3 (discovery pages) on `feat/f1-discovery`.
+M4 (product page + comparator) on `feat/f1-product`.
