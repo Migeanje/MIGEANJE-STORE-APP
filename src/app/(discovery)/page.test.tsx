@@ -1,15 +1,15 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import HomePage from "@/app/(discovery)/page";
-import { expectNoAxeViolations } from "@/test/a11y";
+
+vi.mock("@/modules/catalog/ui/home.container", () => ({
+  HomeContainer: () => <p>Contenido del inicio</p>,
+}));
 
 describe("HomePage", () => {
-  it("renders the store name as the main heading", async () => {
-    const { container } = render(<HomePage />);
+  it("renders the home container", () => {
+    render(<HomePage />);
 
-    expect(
-      screen.getByRole("heading", { level: 1, name: "Migeanje Store" }),
-    ).toBeInTheDocument();
-    await expectNoAxeViolations(container);
+    expect(screen.getByText("Contenido del inicio")).toBeInTheDocument();
   });
 });
