@@ -40,14 +40,14 @@ The design system (`f1-design-system`) is done and on `main`. F1 objectives 3 an
 | M3 | Discovery: Home, Category (spec filters), Brand, Search results | Delegated (writer) | 2+ non-trivial files | Done — `fa9cdb7`, `55bbb1e`, `e441956`, `bf30562`, `31b1c49` (branch `feat/f1-discovery`) |
 | M4 | Product page (gallery, variants, specs, availability, expert review rubric, compare) + Comparator | Delegated (writer) | 2+ non-trivial files | Done — `28ba3c0`, `abdce1c`, `8860bcb` (branch `feat/f1-product`) |
 | M5 | Cart module (domain, mock adapter, server actions, cookie) + cart drawer | Delegated (writer) | 2+ non-trivial files | Done — `07924cb`, `90f6d16`, `fb508d9`, `6376e3f` (branch `feat/f1-cart`); high risk → independent verifier |
-| M5.1 | Restore cached catalog pages (Engram #15 3.1): reading the cart cookie in the root layout made every route dynamic; fix via `cacheComponents` + Suspense around the cart slot, or a client-fetched cart count | Delegated (writer) | `next.config.ts` + layout | Pending |
+| M5.1 | Restore cached catalog pages (Engram #15 3.1): reading the cart cookie in the root layout made every route dynamic; fix via `cacheComponents` + Suspense around the cart slot, or a client-fetched cart count | Delegated (writer) | `next.config.ts` + layout | Done — in `952b66c`: root layout reads no cookies; header cart/account state loaded on the client via server actions; `/`, legal pages static, `/marcas/*` prerendered (`x-nextjs-cache: HIT`). `cacheComponents` rejected (redirects/404 broke without JS). Category/product pages stay dynamic (`searchParams`/`?variante=`) |
 | M6 | Checkout 3 steps (contact + shipping with ubigeo, receipt boleta / factura flag off, simulated Culqi payment) + order confirmation | Delegated (writer) | 2+ non-trivial files | Done — `6a922df`, `6cf956f`, `d1c5431`, `9202edc`, `3a5af7c` (branch `feat/f1-checkout`); payments/PII → independent verifier |
 | M6.1 | Payment guard from M6 verification: expected total posted by the pay form and `cart_changed` refusal; validate/build order and reserve its number before charging | Delegated (writer) | checkout + orders | Done — `7d5c4e8` (branch `feat/f1-payment-guard`); verifier PASS |
-| M7.1 | Hardening from M7/M6.1 verification: throttle key not trusting spoofable `x-forwarded-for`; throttle `unlockOrderAction`; block re-payment after `order_persist_failed_after_charge` (pending reconciliation notice on `/checkout/pago`) | Delegated (writer) | orders + checkout | In progress |
+| M7.1 | Hardening from M7/M6.1 verification: throttle key not trusting spoofable `x-forwarded-for`; throttle `unlockOrderAction`; block re-payment after `order_persist_failed_after_charge` (pending reconciliation notice on `/checkout/pago`) | Delegated (writer) | orders + checkout | Done — `6ee0b83` (branch `feat/f1-trust-pages`); verifier PASS |
 | M7 | Orders: public order status ("En importación") | Delegated (writer) | 2+ non-trivial files | Done — `465ed20`, `6b411ff`, `1709039` (branch `feat/f1-orders`) |
 | M8 | Libro de Reclamaciones form + constancia | Delegated (writer) | 2+ non-trivial files | Done — `9dabc9f`, `2abe1f9`, `345808b` (branch `feat/f1-complaints`) |
-| M9a | Trust & legal pages: "Cómo elegimos", términos, privacidad, envíos y devoluciones, garantías (DRAFT, research-backed) | Delegated (writer) | content + templates | In progress |
-| M9b | Account mock: login/register/reset, profile, addresses, my orders, favorites | Delegated (writer) | 2+ non-trivial files | Pending |
+| M9a | Trust & legal pages: "Cómo elegimos", términos, privacidad, envíos y devoluciones, garantías (DRAFT, research-backed) | Delegated (writer) | content + templates | Done — `b9f47c7` |
+| M9b | Account mock: login/register/reset, profile, addresses, my orders, favorites | Delegated (writer) | 2+ non-trivial files | Done — `d28ab36`, `7ea98ee`, `04bbc2e`, `952b66c` (branch `feat/f1-account`, includes M5.1) |
 
 ## Acceptance criteria
 
@@ -122,6 +122,16 @@ Decisions made without the owner during the overnight run, within approved desig
 - M6.1: Quote = expected total + 32-bit FNV-1a cart fingerprint (compare only; server charges its own total). If clearing the cart fails after saving the order, the order still counts. Reconciliation log exists only for mock (lost on restart; the structured log event is the lasting record).
 - M8: Sheet number follows the official form `000000001-2026` (yearly correlative). Required fields limited to those whose absence voids a claim (name, document, address, email, detail, type, declaration). Added "how to receive the answer" (email or letter). Minors: guardian name required, no guardian document (data minimization). Truthfulness checkbox required (lawyer to confirm). DNI/CE only (as the official form). Order number not validated against real orders (no existence leak). Print theme added to `tokens.css` via `var()` aliases (screen tokens unchanged).
 
+- M7.1: Throttle key = server-issued httpOnly `mg_client` cookie (1 day); forwarded addresses only behind `network.trustedProxyHops` (default 0). A cart with a pending reconciliation stays blocked until resolved by hand (no resolve step in mock).
+- M9a: Return policy DRAFT: 7 days, opening the box allowed (no sealed-product rule), customer pays return shipping for change of mind, store pays for faults; refunds within 5 business days; two delivery attempts. Score meanings 1–5 and the "we test in real use" claim on `/como-elegimos` need owner confirmation. Customer email in `src/shared/config/contact.ts` (null for now).
+- M9b: Demo account `demo@migeanje.pe` / `Demo-2026!` (mock only). Password rule 8–128 chars with a letter and a number; registration requires accepting terms and privacy (DRAFT). Registering an existing email says so (no email verification yet; counts against the login limit). Guests see "Guardar en favoritos" as a link to login. Without JS the header shows "Carrito" without count and a plain "Mi cuenta"; each navigation makes two small server calls for header state.
+
+## M7.1 / M9a / M9b evidence
+
+- M7.1 + M9a: writer verification lint, typecheck, test (1,869 ×4), build, build-storybook ok; headless 84 checks, 0 failures. Legal sources in Engram `legal/trust-pages`. Independent verifier on M7.1 (`6ee0b83`): **PASS** (23/23 live checks); remaining gaps documented for F4 (cookie-less clients start fresh counts; simultaneous double payment needs a Culqi idempotency key).
+- M9b + M5.1: writer verification lint, typecheck, test (2,097 ×2), build, build-storybook ok; headless axe 0 violations in 28 checks, 24/24 flow checks, cart regression 9/9. Parent spot check: `pnpm test` 2,097 passed; `pnpm lint` ok (745 files).
+- Independent verifier on `952b66c`: **FAIL** with 2 HIGH: (1) reproduced open redirect via `volver=/.//evil.example` (dot segments normalized to `//evil.example`); (2) registering someone else's email listed their guest orders in "Mis pedidos" (no email verification). One scoped correction: `4fe1ba2` (validate after normalization; 44 path tests) and `19d75a4` (`emailVerifiedAt`; `listAccountOrders` requires a verified account; demo verified; DRAFT notice for unverified). RED observed for both; `pnpm test` 2,134 passed ×2 (writer) and once (parent); exploit re-check on `pnpm start`: all three variants now `307 Location: /cuenta`. Real email verification arrives with Resend (F3/F5).
+
 ## M8 evidence
 
 - Legal sources: Ley 29571 arts. 150–151 (amended by Ley 32495), Ley 31435 (15 business days, non-extendable), D.S. 101-2022-PCM (Anexo I, arts. 4-B, 5, 6, 6-B, 12). Engram `legal/libro-de-reclamaciones`.
@@ -174,4 +184,4 @@ Decisions made without the owner during the overnight run, within approved desig
 
 ## Next step
 
-M7.1 + M9a on `feat/f1-trust-pages`; then M9b + M5.1.
+All tasks M0–M9 done. Morning: owner reviews "Decisions to review", re-enables native review (`gentle-ai review mode enable --scope clone`), pushes the stacked branches and opens PRs in order (catalog-domain → app-shell → discovery → product → cart → checkout → orders → payment-guard → complaints → trust-pages → account).
