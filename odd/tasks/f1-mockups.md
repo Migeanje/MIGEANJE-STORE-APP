@@ -39,7 +39,8 @@ The design system (`f1-design-system`) is done and on `main`. F1 objectives 3 an
 | M2 | App shell: layout, header (nav, SearchBar, cart button), footer (legal links, Libro de Reclamaciones), motion providers (Lenis/GSAP on discovery only), 404/error | Delegated (writer) | 2+ non-trivial files | Done — `5399153`, `bd23170`, `b2cbbbf` (branch `feat/f1-app-shell`) |
 | M3 | Discovery: Home, Category (spec filters), Brand, Search results | Delegated (writer) | 2+ non-trivial files | Done — `fa9cdb7`, `55bbb1e`, `e441956`, `bf30562`, `31b1c49` (branch `feat/f1-discovery`) |
 | M4 | Product page (gallery, variants, specs, availability, expert review rubric, compare) + Comparator | Delegated (writer) | 2+ non-trivial files | Done — `28ba3c0`, `abdce1c`, `8860bcb` (branch `feat/f1-product`) |
-| M5 | Cart module (domain, mock adapter, server actions, cookie) + cart drawer | Delegated (writer) | 2+ non-trivial files | Pending |
+| M5 | Cart module (domain, mock adapter, server actions, cookie) + cart drawer | Delegated (writer) | 2+ non-trivial files | Done — `07924cb`, `90f6d16`, `fb508d9`, `6376e3f` (branch `feat/f1-cart`); high risk → independent verifier |
+| M5.1 | Restore cached catalog pages (Engram #15 3.1): reading the cart cookie in the root layout made every route dynamic; fix via `cacheComponents` + Suspense around the cart slot, or a client-fetched cart count | Delegated (writer) | `next.config.ts` + layout | Pending |
 | M6 | Checkout 3 steps (contact + shipping with ubigeo, receipt boleta / factura flag off, simulated Culqi payment) + order confirmation | Delegated (writer) | 2+ non-trivial files | Pending |
 | M7 | Orders: public order status ("En importación") | Delegated (writer) | 2+ non-trivial files | Pending |
 | M8 | Libro de Reclamaciones form + constancia | Delegated (writer) | 2+ non-trivial files | Pending |
@@ -101,6 +102,17 @@ Decisions made without the owner during the overnight run, within approved desig
 - M4: One schema.org offer for the selected variant (relative URLs). No `next.config.ts` change for SVG (Next serves `.svg` unoptimized). Backorder explainer, "Avísame" and cart messages marked DRAFT.
 - M4: Apple future line reuses the "Agotado" label (could become "Próximamente").
 
+- M5: Mixed carts (in stock + backorder) ship together when everything is available; overall lead time = max of backorder lines.
+- M5: Over-limit adds clamp and explain; a line already at the limit is refused; removing a missing line counts as success. Quantity limits now live in the cart domain and in the product page `MAX_QUANTITY` (duplication to unify).
+- M5: Header count via a `cart` slot (catalog does not import cart); drawer opened through `AddToCartFeedbackProvider`; header link becomes a button after hydration; drawer closes on navigation.
+- M5: Cart lines snapshot name/image/href (`?variante=`). All new copy marked DRAFT. **Regression to fix (M5.1):** cookie read in the root layout makes every route dynamic, against #15 3.1.
+
+## M5 evidence
+
+- RED → GREEN: domain (44), application (22), infrastructure (35), actions (37). Writer verification: install, lint (411 files), typecheck, test (1,280 ×2), build, build-storybook ok. Headless axe: 0 violations in 12 checks (375/1280px); 18/18 flow checks; add-to-cart and remove work without JS.
+- Parent spot check: `pnpm test` 1,280 passed; `pnpm lint` ok. Stopped a leftover `next start -p 3100`. Risk tier: **high** (`hot_path` on cart update) → independent verifier on an isolated worktree at `6376e3f`.
+- M6 extension point: `loadCart()` from `@/modules/cart/ui/cart-data` (server-only, per-request cache) → `Cart | null`; totals via `summarizeCart(cart.lines)`; clear via `clearCart(getCartRepository(), await readCartId())`; checkout must re-price through `getProductLookup()` before payment.
+
 ## M4 evidence
 
 - RED → GREEN: 12 logic test files (31 failing tests first). Writer verification: install, lint (342 files), typecheck, test (1,070), build, build-storybook ok. Headless axe: 0 violations in 34 checks (3 product pages, 4 comparator states, tray and notify-me interactions; 375/1280px; normal/reduced motion); variant links and differences toggle work without JS.
@@ -123,4 +135,4 @@ Decisions made without the owner during the overnight run, within approved desig
 
 ## Next step
 
-M5 (cart module + drawer) on `feat/f1-cart`.
+M6 (checkout + order creation) on `feat/f1-checkout`, in parallel with the M5 independent verifier.
