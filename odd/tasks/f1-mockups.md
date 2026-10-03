@@ -83,7 +83,7 @@ The design system (`f1-design-system`) is done and on `main`. F1 objectives 3 an
 
 ## Decisions to review (overnight)
 
-Decisions made without the owner during the overnight run, within approved design and scope. Review each in the morning.
+Decisions made without the owner during the overnight run, within approved design and scope. **Approved by the owner on 2026-10-03**, including mixed carts shipping together (single shipment). Native review re-enabled for the clone the same day.
 
 - M2: Header reads the current path itself (`usePathname`) instead of receiving it as a prop.
 - M2: Search is a native GET form to `/buscar` (works without JS), enhanced to client navigation.
