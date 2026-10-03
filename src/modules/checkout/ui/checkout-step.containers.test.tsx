@@ -7,6 +7,7 @@ import {
   CART_ID,
 } from "@/modules/cart/testing/cart-builders";
 import type { CheckoutDraft } from "@/modules/checkout/domain/checkout-draft";
+import { paymentQuote } from "@/modules/checkout/domain/payment-quote";
 import {
   aContact,
   aUbigeoTree,
@@ -140,7 +141,7 @@ describe("PaymentStepContainer", () => {
 
   it("shows the card form with the total to pay", async () => {
     withDraft({ contact: aContact(), receipt: BOLETA });
-    render(await PaymentStepContainer({ pay }));
+    const { container } = render(await PaymentStepContainer({ pay }));
 
     // 2 × 189.90 + 248.90 + 10.00 shipping to Lima.
     expect(
@@ -149,6 +150,16 @@ describe("PaymentStepContainer", () => {
     expect(
       screen.getByRole("note", { name: "Modo demostración" }),
     ).toBeInTheDocument();
+    // The form posts back the quote it shows.
+    const form = new FormData(
+      container.querySelector("form") as HTMLFormElement,
+    );
+    const quote = paymentQuote(cart.lines, {
+      departamento: "15",
+      provincia: "1501",
+    });
+    expect(form.get("expectedTotal")).toBe("63870");
+    expect(form.get("quoteFingerprint")).toBe(quote?.fingerprint);
   });
 });
 

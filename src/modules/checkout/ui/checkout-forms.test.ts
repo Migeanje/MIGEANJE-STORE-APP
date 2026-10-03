@@ -7,6 +7,7 @@ import {
   type PaymentFormValues,
   paymentFormSchema,
   readFormValues,
+  readPaymentQuote,
   receiptFormSchema,
 } from "./checkout-forms";
 
@@ -275,5 +276,36 @@ describe("paymentFormSchema", () => {
     expect(
       paymentFormSchema(now).safeParse({ ...card, acceptTerms: false }).success,
     ).toBe(false);
+  });
+});
+
+describe("readPaymentQuote", () => {
+  function quoteForm(fields: Record<string, string>) {
+    const data = new FormData();
+    for (const [name, value] of Object.entries(fields)) data.set(name, value);
+    return data;
+  }
+
+  it("reads the total and fingerprint the payment page posted", () => {
+    expect(
+      readPaymentQuote(
+        quoteForm({ expectedTotal: "38980", quoteFingerprint: "1a2b3c4d" }),
+      ),
+    ).toEqual({ total: 38980, fingerprint: "1a2b3c4d" });
+  });
+
+  it("answers null for a missing or malformed quote", () => {
+    const malformed: Record<string, string>[] = [
+      {},
+      { expectedTotal: "38980" },
+      { expectedTotal: "389.80", quoteFingerprint: "1a2b3c4d" },
+      { expectedTotal: "-1", quoteFingerprint: "1a2b3c4d" },
+      { expectedTotal: "0", quoteFingerprint: "1a2b3c4d" },
+      { expectedTotal: "99999999999999999999", quoteFingerprint: "1a2b3c4d" },
+      { expectedTotal: "38980", quoteFingerprint: "not-hex!" },
+    ];
+    for (const fields of malformed) {
+      expect(readPaymentQuote(quoteForm(fields))).toBeNull();
+    }
   });
 });

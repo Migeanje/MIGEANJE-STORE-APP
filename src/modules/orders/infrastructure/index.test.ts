@@ -7,6 +7,7 @@ import {
   getDemoTracking,
   getOrderRepository,
   getPaymentGateway,
+  getReconciliationLog,
   getTrackingAttempts,
 } from "./index";
 
@@ -58,6 +59,12 @@ describe("orders composition root", () => {
     expect(getDemoTracking()).toBeNull();
   });
 
+  it("keeps one process-wide log of charges to reconcile for DATA_SOURCE=mock", () => {
+    vi.stubEnv("DATA_SOURCE", "mock");
+    const log = getReconciliationLog();
+    expect(getReconciliationLog()).toBe(log);
+  });
+
   it("keeps one process-wide limiter of failed tracking lookups", () => {
     const attempts = getTrackingAttempts();
     expect(getTrackingAttempts()).toBe(attempts);
@@ -76,6 +83,9 @@ describe("orders composition root", () => {
       "DATA_SOURCE=medusa is not implemented yet",
     );
     expect(() => getPaymentGateway()).toThrow(
+      "DATA_SOURCE=medusa is not implemented yet",
+    );
+    expect(() => getReconciliationLog()).toThrow(
       "DATA_SOURCE=medusa is not implemented yet",
     );
   });

@@ -4,7 +4,7 @@ import {
   hasUsableReceipt,
   pendingStep,
 } from "@/modules/checkout/domain/checkout-draft";
-import { checkoutTotals } from "@/modules/checkout/domain/checkout-totals";
+import { paymentQuote } from "@/modules/checkout/domain/payment-quote";
 import { getUbigeoDirectory } from "@/modules/checkout/infrastructure";
 import { features } from "@/shared/config/features";
 import { saveContactAction, saveReceiptAction } from "./actions";
@@ -100,18 +100,18 @@ export async function PaymentStepContainer({ pay }: { pay: PayAction }) {
     redirect(CHECKOUT_STEP_PATHS.receipt);
   }
   const { ubigeo } = draft.contact.address;
-  const { total } = checkoutTotals(cart.lines, {
+  const quote = paymentQuote(cart.lines, {
     departamento: ubigeo.departamento.code,
     provincia: ubigeo.provincia.code,
   });
-  if (total === null) throw new Error("A checkout with an address has a total");
+  if (!quote) throw new Error("A checkout with an address has a total");
 
   return (
     <CheckoutShell step="payment" summary={summaryOf(checkout)}>
       <PaymentForm
         action={pay}
         initialState={initialFormState()}
-        total={total}
+        quote={quote}
         termsHref={TERMS_PATH}
       />
     </CheckoutShell>

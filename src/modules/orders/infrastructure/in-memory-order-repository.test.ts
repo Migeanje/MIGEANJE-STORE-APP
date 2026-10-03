@@ -5,14 +5,13 @@ import { createInMemoryOrderRepository } from "./in-memory-order-repository";
 
 describe("createInMemoryOrderRepository", () => {
   it("numbers orders MG-<Lima year>-<6 random digits>", async () => {
-    const orders = createInMemoryOrderRepository({
-      randomSequence: () => 4521,
-    });
-    expect(await orders.nextNumber(new Date("2026-10-03T12:00:00Z"))).toBe(
+    const orders = () =>
+      createInMemoryOrderRepository({ randomSequence: () => 4521 });
+    expect(await orders().reserveNumber(new Date("2026-10-03T12:00:00Z"))).toBe(
       "MG-2026-004521",
     );
     // 2027-01-01 03:00 UTC is still 2026 in Lima.
-    expect(await orders.nextNumber(new Date("2027-01-01T03:00:00Z"))).toBe(
+    expect(await orders().reserveNumber(new Date("2027-01-01T03:00:00Z"))).toBe(
       "MG-2026-004521",
     );
   });
@@ -23,8 +22,24 @@ describe("createInMemoryOrderRepository", () => {
       randomSequence: () => sequences.shift() ?? 0,
     });
     await orders.save(anOrder({ number: "MG-2026-000123" }));
-    expect(await orders.nextNumber(new Date("2026-10-03T12:00:00Z"))).toBe(
+    expect(await orders.reserveNumber(new Date("2026-10-03T12:00:00Z"))).toBe(
       "MG-2026-000456",
+    );
+  });
+
+  it("never reserves the same number twice, even before its order is saved", async () => {
+    const sequences = [123, 123, 456];
+    const orders = createInMemoryOrderRepository({
+      randomSequence: () => sequences.shift() ?? 0,
+    });
+    const at = new Date("2026-10-03T12:00:00Z");
+
+    expect(await orders.reserveNumber(at)).toBe("MG-2026-000123");
+    expect(await orders.reserveNumber(at)).toBe("MG-2026-000456");
+    // The order of a reserved number is saved with it.
+    await orders.save(anOrder({ number: "MG-2026-000123" }));
+    expect((await orders.findByNumber("MG-2026-000123"))?.number).toBe(
+      "MG-2026-000123",
     );
   });
 

@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Resolver } from "react-hook-form";
 import type { PaymentCard } from "@/modules/checkout/domain/payment-card";
+import type { PaymentQuote } from "@/modules/checkout/domain/payment-quote";
 import { formatPEN } from "@/shared/lib/money";
 import { Button } from "@/shared/ui/atoms/button";
 import { ErrorSummary } from "@/shared/ui/molecules/error-summary";
@@ -10,6 +11,7 @@ import { CardPaymentFields } from "@/shared/ui/organisms/card-payment-fields";
 import { ERROR_SUMMARY_TITLE } from "./checkout-copy";
 import {
   PAYMENT_FIELDS,
+  PAYMENT_QUOTE_FIELDS,
   type PaymentField,
   type PaymentFormValues,
   paymentFormSchema,
@@ -20,8 +22,12 @@ import { useCheckoutForm } from "./use-checkout-form";
 export type PaymentFormProps = {
   action: PayAction;
   initialState: PaymentFormState;
-  /** What "Pagar" charges, in céntimos. */
-  total: number;
+  /**
+   * What "Pagar" shows (total in céntimos) and its fingerprint. Posted back in
+   * hidden fields: the server refuses to charge when the cart no longer
+   * matches it (e.g. it changed in another tab).
+   */
+  quote: PaymentQuote;
   termsHref: string;
 };
 
@@ -53,7 +59,7 @@ const paymentResolver = ((values, context, options) =>
 export function PaymentForm({
   action,
   initialState,
-  total,
+  quote,
   termsHref,
 }: PaymentFormProps) {
   const {
@@ -86,6 +92,16 @@ export function PaymentForm({
       noValidate
       className="flex flex-col gap-8"
     >
+      <input
+        type="hidden"
+        name={PAYMENT_QUOTE_FIELDS.total}
+        value={quote.total}
+      />
+      <input
+        type="hidden"
+        name={PAYMENT_QUOTE_FIELDS.fingerprint}
+        value={quote.fingerprint}
+      />
       <ErrorSummary
         ref={summaryRef}
         title={formError?.title ?? ERROR_SUMMARY_TITLE}
@@ -132,7 +148,7 @@ export function PaymentForm({
         loading={pending}
         className="w-full sm:w-auto"
       >
-        Pagar {formatPEN(total)}
+        Pagar {formatPEN(quote.total)}
       </Button>
     </form>
   );

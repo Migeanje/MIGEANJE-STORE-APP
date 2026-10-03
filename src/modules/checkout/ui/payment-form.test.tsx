@@ -16,7 +16,7 @@ function renderForm(
     <PaymentForm
       action={action}
       initialState={initialFormState()}
-      total={38980}
+      quote={{ total: 38980, fingerprint: "1a2b3c4d" }}
       termsHref="/terminos"
     />,
   );
@@ -93,6 +93,17 @@ describe("PaymentForm", () => {
     const data = vi.mocked(action).mock.calls[0]?.[1] as FormData;
     expect(data.get("cardNumber")).toBe("4111 1111 1111 1111");
     expect(data.get("acceptTerms")).toBe("si");
+    // What the page showed, so the server can refuse a stale page.
+    expect(data.get("expectedTotal")).toBe("38980");
+    expect(data.get("quoteFingerprint")).toBe("1a2b3c4d");
+  });
+
+  it("keeps the quote in the form itself, so it posts without JavaScript too", () => {
+    const { container } = renderForm();
+    const form = container.querySelector("form") as HTMLFormElement;
+    const data = new FormData(form);
+    expect(data.get("expectedTotal")).toBe("38980");
+    expect(data.get("quoteFingerprint")).toBe("1a2b3c4d");
   });
 
   it("explains a declined payment with the server's message and focuses it", async () => {

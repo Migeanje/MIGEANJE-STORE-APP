@@ -10,7 +10,11 @@ import {
   fakeCarts,
   fakeProducts,
 } from "@/modules/cart/testing/cart-builders";
-import type { CheckoutDraft } from "@/modules/checkout/domain/checkout-draft";
+import type {
+  CheckoutDraft,
+  ContactDetails,
+} from "@/modules/checkout/domain/checkout-draft";
+import { paymentQuote } from "@/modules/checkout/domain/payment-quote";
 import {
   aContact,
   aFactura,
@@ -23,6 +27,7 @@ import {
   aCard,
   fakeOrders,
   fakePayments,
+  fakeReconciliations,
   PLACED_AT,
 } from "@/modules/orders/testing/order-builders";
 import { placeOrder } from "./place-order";
@@ -31,10 +36,12 @@ function setup({
   cart = aCart([aLine({ quantity: 2 })]),
   offers = [anOffer(), aBackorderOffer()],
   payment = fakePayments(),
+  reconciliations = fakeReconciliations(),
 }: {
   cart?: Cart;
   offers?: CartOffer[];
   payment?: ReturnType<typeof fakePayments>;
+  reconciliations?: ReturnType<typeof fakeReconciliations>;
 } = {}) {
   const carts = fakeCarts([cart]);
   const orders = fakeOrders();
@@ -43,10 +50,11 @@ function setup({
     payments: payment.gateway,
     products: fakeProducts(offers),
     carts: carts.repository,
+    reconciliations: reconciliations.log,
     now: () => PLACED_AT,
     newAccessToken: () => ACCESS_TOKEN,
   };
-  return { services, carts, orders, payment, cart };
+  return { services, carts, orders, payment, reconciliations, cart };
 }
 
 const DRAFT: CheckoutDraft = {
@@ -54,6 +62,17 @@ const DRAFT: CheckoutDraft = {
   contact: aContact(),
   receipt: BOLETA,
 };
+
+/** What the payment page showed for this cart and address ("Pagar S/ X"). */
+function quoteOf(cart: Cart, contact: ContactDetails = aContact()) {
+  const { ubigeo } = contact.address;
+  const quote = paymentQuote(cart.lines, {
+    departamento: ubigeo.departamento.code,
+    provincia: ubigeo.provincia.code,
+  });
+  if (!quote) throw new Error("A contact always has a shipping quote");
+  return quote;
+}
 
 describe("placeOrder", () => {
   it("charges subtotal plus shipping, stores the order and empties the cart", async () => {
@@ -63,6 +82,7 @@ describe("placeOrder", () => {
       cart,
       draft: DRAFT,
       card: aCard(),
+      expected: quoteOf(cart),
       facturaEnabled: false,
     });
 
@@ -85,6 +105,7 @@ describe("placeOrder", () => {
     });
     expect(orders.store.get("MG-2026-000001")).toEqual(result.order);
     expect(carts.store.get(CART_ID)?.lines).toEqual([]);
+    expect(result.cartCleared).toBe(true);
   });
 
   it("never stores card data in the order", async () => {
@@ -93,6 +114,7 @@ describe("placeOrder", () => {
       cart,
       draft: DRAFT,
       card: aCard(),
+      expected: quoteOf(cart),
       facturaEnabled: false,
     });
     const serialized = JSON.stringify(result);
@@ -109,6 +131,7 @@ describe("placeOrder", () => {
       cart,
       draft: { ...DRAFT, contact: anArequipaContact() },
       card: aCard(),
+      expected: quoteOf(cart, anArequipaContact()),
       facturaEnabled: false,
     });
 
@@ -132,6 +155,7 @@ describe("placeOrder", () => {
       cart,
       draft: DRAFT,
       card: aCard(),
+      expected: quoteOf(cart),
       facturaEnabled: false,
     });
 
@@ -169,6 +193,7 @@ describe("placeOrder", () => {
       cart,
       draft: DRAFT,
       card: aCard(),
+      expected: quoteOf(cart),
       facturaEnabled: false,
     });
 
@@ -206,6 +231,7 @@ describe("placeOrder", () => {
       cart,
       draft: DRAFT,
       card: aCard(),
+      expected: quoteOf(cart),
       facturaEnabled: false,
     });
     expect(result.ok).toBe(false);
@@ -217,6 +243,248 @@ describe("placeOrder", () => {
     expect(payment.requests).toEqual([]);
   });
 
+  it("does not charge a payment page that shows an old total (the cart changed in another tab)", async () => {
+    // The page said "Pagar S/ 199.90" for one charger; then 2 more were added.
+    const shown = quoteOf(aCart([aLine({ quantity: 1 })]));
+    const { services, carts, orders, payment, cart } = setup({
+      cart: aCart([aLine({ quantity: 3 })]),
+    });
+
+    const result = await placeOrder(services, {
+      cart,
+      draft: DRAFT,
+      card: aCard(),
+      expected: shown,
+      facturaEnabled: false,
+    });
+
+    expect(shown.total).toBe(19990);
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: "cart_changed",
+        changes: [{ kind: "quote", from: 19990, to: 57970 }],
+      },
+    });
+    expect(payment.requests).toEqual([]);
+    expect(orders.store.size).toBe(0);
+    expect(carts.store.get(CART_ID)?.lines[0]?.quantity).toBe(3);
+  });
+
+  it("never charges an amount from the form: a lower posted total is refused", async () => {
+    const { services, payment, cart } = setup();
+    const current = quoteOf(cart);
+
+    const result = await placeOrder(services, {
+      cart,
+      draft: DRAFT,
+      card: aCard(),
+      expected: { ...current, total: 100 },
+      facturaEnabled: false,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: "cart_changed",
+        changes: [{ kind: "quote", from: 100, to: 38980 }],
+      },
+    });
+    expect(payment.requests).toEqual([]);
+  });
+
+  it("does not charge when the cart changed but its total did not, or no quote came", async () => {
+    const { services, payment, cart } = setup();
+    const current = quoteOf(cart);
+
+    for (const expected of [{ ...current, fingerprint: "00000000" }, null]) {
+      const result = await placeOrder(services, {
+        cart,
+        draft: DRAFT,
+        card: aCard(),
+        expected,
+        facturaEnabled: false,
+      });
+      expect(result).toEqual({
+        ok: false,
+        error: {
+          code: "cart_changed",
+          changes: [
+            { kind: "quote", from: expected?.total ?? null, to: 38980 },
+          ],
+        },
+      });
+    }
+    expect(payment.requests).toEqual([]);
+  });
+
+  it("checks the order before charging: an order that cannot be built is never charged", async () => {
+    const { services, orders, payment, cart } = setup();
+    services.newAccessToken = () => "not-a-uuid";
+
+    await expect(
+      placeOrder(services, {
+        cart,
+        draft: DRAFT,
+        card: aCard(),
+        expected: quoteOf(cart),
+        facturaEnabled: false,
+      }),
+    ).rejects.toThrow();
+    expect(payment.requests).toEqual([]);
+    expect(orders.store.size).toBe(0);
+  });
+
+  it("never charges when no order number can be reserved", async () => {
+    const { services, payment, cart } = setup();
+    services.orders = {
+      ...services.orders,
+      reserveNumber: async () => {
+        throw new Error("No free order number for 2026");
+      },
+    };
+
+    await expect(
+      placeOrder(services, {
+        cart,
+        draft: DRAFT,
+        card: aCard(),
+        expected: quoteOf(cart),
+        facturaEnabled: false,
+      }),
+    ).rejects.toThrow("No free order number");
+    expect(payment.requests).toEqual([]);
+  });
+
+  it("keeps a record to reconcile when the order cannot be stored after the charge", async () => {
+    const { services, carts, payment, reconciliations, cart } = setup();
+    services.orders = {
+      ...services.orders,
+      save: async () => {
+        throw new Error("disk full");
+      },
+    };
+
+    const result = await placeOrder(services, {
+      cart,
+      draft: DRAFT,
+      card: aCard(),
+      expected: quoteOf(cart),
+      facturaEnabled: false,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: "order_persist_failed_after_charge",
+        orderNumber: "MG-2026-000001",
+        chargeId: "chr_demo_1",
+        amount: 38980,
+        failure: "disk full",
+        recorded: true,
+      },
+    });
+    expect(payment.requests).toHaveLength(1);
+    expect(reconciliations.entries).toEqual([
+      {
+        order: expect.objectContaining({
+          number: "MG-2026-000001",
+          totals: { subtotal: 37980, shipping: 1000, total: 38980 },
+        }),
+        chargeId: "chr_demo_1",
+        amount: 38980,
+        currency: "PEN",
+        cartId: CART_ID,
+        failure: "disk full",
+        recordedAt: PLACED_AT.toISOString(),
+      },
+    ]);
+    // Never card data in the record.
+    const recorded = JSON.stringify(reconciliations.entries);
+    expect(recorded).not.toContain("4111111111111111");
+    expect(recorded).not.toContain("ANA PEREZ");
+    // The cart stays as it was (the record holds what was bought).
+    expect(carts.store.get(CART_ID)?.lines).toHaveLength(1);
+  });
+
+  it("also keeps a record when the approved charge has no usable reference", async () => {
+    const { services, orders, reconciliations, cart } = setup({
+      payment: fakePayments({ status: "approved", chargeId: "" }),
+    });
+
+    const result = await placeOrder(services, {
+      cart,
+      draft: DRAFT,
+      card: aCard(),
+      expected: quoteOf(cart),
+      facturaEnabled: false,
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toMatchObject({
+      code: "order_persist_failed_after_charge",
+      orderNumber: "MG-2026-000001",
+      chargeId: "",
+      recorded: true,
+    });
+    expect(reconciliations.entries).toHaveLength(1);
+    expect(orders.store.size).toBe(0);
+  });
+
+  it("still says the payment was registered when the record fails too", async () => {
+    const { services, cart } = setup({
+      reconciliations: fakeReconciliations({
+        failure: new Error("log unavailable"),
+      }),
+    });
+    services.orders = {
+      ...services.orders,
+      save: async () => {
+        throw new Error("disk full");
+      },
+    };
+
+    const result = await placeOrder(services, {
+      cart,
+      draft: DRAFT,
+      card: aCard(),
+      expected: quoteOf(cart),
+      facturaEnabled: false,
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toMatchObject({
+      code: "order_persist_failed_after_charge",
+      recorded: false,
+    });
+  });
+
+  it("keeps a stored order when emptying the cart fails afterwards", async () => {
+    const { services, orders, cart } = setup();
+    services.carts = {
+      ...services.carts,
+      save: async () => {
+        throw new Error("cart store down");
+      },
+    };
+
+    const result = await placeOrder(services, {
+      cart,
+      draft: DRAFT,
+      card: aCard(),
+      expected: quoteOf(cart),
+      facturaEnabled: false,
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      order: orders.store.get("MG-2026-000001"),
+      cartCleared: false,
+    });
+  });
+
   it("keeps the cart and stores nothing when the card is declined", async () => {
     const { services, carts, orders, cart } = setup({
       payment: fakePayments({ status: "declined", reason: "card_declined" }),
@@ -226,6 +494,7 @@ describe("placeOrder", () => {
       cart,
       draft: DRAFT,
       card: aCard({ number: "4000000000000002" }),
+      expected: quoteOf(cart),
       facturaEnabled: false,
     });
 
@@ -245,6 +514,7 @@ describe("placeOrder", () => {
           cart,
           draft: DRAFT,
           card: aCard(),
+          expected: null,
           facturaEnabled: false,
         }),
       ).toEqual({ ok: false, error: { code: "empty_cart" } });
@@ -268,6 +538,7 @@ describe("placeOrder", () => {
           cart,
           draft,
           card: aCard(),
+          expected: quoteOf(cart),
           facturaEnabled: false,
         }),
       ).toEqual({ ok: false, error: { code: "incomplete_checkout", step } });
@@ -281,6 +552,7 @@ describe("placeOrder", () => {
       cart,
       draft: { ...DRAFT, receipt: aFactura() },
       card: aCard(),
+      expected: quoteOf(cart),
       facturaEnabled: true,
     });
     expect(result.ok && result.order.receipt).toEqual(aFactura());

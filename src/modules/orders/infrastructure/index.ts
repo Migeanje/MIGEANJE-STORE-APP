@@ -18,6 +18,10 @@ import {
   demoOrders,
 } from "./fixtures/demo-orders";
 import { createInMemoryOrderRepository } from "./in-memory-order-repository";
+import {
+  createInMemoryReconciliationLog,
+  type InMemoryReconciliationLog,
+} from "./in-memory-reconciliation-log";
 import { createMockPaymentGateway } from "./mock-payment-gateway";
 
 // DEV ONLY: with DATA_SOURCE=mock, orders live in this process's memory (on
@@ -88,6 +92,31 @@ export function getTrackingAttempts(): AttemptLimiter {
     windowMs: TRACKING_WINDOW_MS,
   });
   return global[TRACKING_ATTEMPTS];
+}
+
+// DEV ONLY, like the mock orders: approved charges whose order could not be
+// stored, in this process's memory (lost on restart).
+const MOCK_RECONCILIATIONS = Symbol.for(
+  "migeanje-store.orders.mock-reconciliation-log",
+);
+type MockReconciliationsGlobal = typeof globalThis & {
+  [MOCK_RECONCILIATIONS]?: InMemoryReconciliationLog;
+};
+
+/**
+ * Approved charges whose order could not be stored, to reconcile by hand.
+ * Real idempotency (Culqi idempotency key / order intent) arrives in F4.
+ */
+export function getReconciliationLog(): InMemoryReconciliationLog {
+  switch (readDataSource()) {
+    case "mock": {
+      const global = globalThis as MockReconciliationsGlobal;
+      global[MOCK_RECONCILIATIONS] ??= createInMemoryReconciliationLog();
+      return global[MOCK_RECONCILIATIONS];
+    }
+    case "medusa":
+      return medusaNotReady("reconciliation");
+  }
 }
 
 /** The simulated payment for mock data (Culqi in F4). */

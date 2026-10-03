@@ -18,6 +18,7 @@ import {
   PAYMENT_FIELDS,
   paymentFormSchema,
   readFormValues,
+  readPaymentQuote,
 } from "@/modules/checkout/ui/checkout-forms";
 import { CHECKOUT_STEP_PATHS } from "@/modules/checkout/ui/checkout-paths";
 import type { PaymentFormState } from "@/modules/checkout/ui/pay-action";
@@ -27,6 +28,7 @@ import { trackOrder } from "@/modules/orders/application/track-order";
 import {
   getOrderRepository,
   getPaymentGateway,
+  getReconciliationLog,
   getTrackingAttempts,
 } from "@/modules/orders/infrastructure";
 import { readClientKey } from "@/modules/orders/infrastructure/client-key";
@@ -40,6 +42,7 @@ import {
   declinedError,
   ORDER_NOT_FOUND_MESSAGE,
   PAYMENT_FAILURE,
+  paymentRegisteredError,
   TRACKING_COPY,
 } from "./order-copy";
 import {
@@ -97,11 +100,20 @@ export async function placeOrderAction(
         payments: getPaymentGateway(),
         products: getProductLookup(),
         carts,
+        reconciliations: getReconciliationLog(),
       },
-      { cart, draft, card: parsed.data, facturaEnabled },
+      {
+        cart,
+        draft,
+        card: parsed.data,
+        // What the page showed: compared with the cart, never charged.
+        expected: readPaymentQuote(formData),
+        facturaEnabled,
+      },
     );
   } catch (error) {
-    // The message only: never the request, which carries the card.
+    // placeOrder only throws before charging: trying again is safe. The
+    // message only: never the request, which carries the card.
     console.error(
       "Placing an order failed:",
       error instanceof Error ? error.message : "unknown error",
@@ -116,12 +128,34 @@ export async function placeOrderAction(
       redirect(CHECKOUT_STEP_PATHS[error.step]);
     }
     if (error.code === "cart_changed") {
-      // Re-render the summary and header with the refreshed cart.
+      // Re-render the summary, the header and "Pagar S/ X" with the cart as
+      // it is now.
       refresh();
       return {
         values: echo,
         errors: {},
         formError: cartChangedError(error.changes),
+        attempt,
+      };
+    }
+    if (error.code === "order_persist_failed_after_charge") {
+      // Charged but not stored: one structured event for the reconciliation
+      // (never card or personal data) and an answer that is not "try again".
+      console.error(
+        JSON.stringify({
+          event: "order_persist_failed_after_charge",
+          orderNumber: error.orderNumber,
+          chargeId: error.chargeId,
+          amount: error.amount,
+          currency: "PEN",
+          reconciliationRecorded: error.recorded,
+          failure: error.failure,
+        }),
+      );
+      return {
+        values: echo,
+        errors: {},
+        formError: paymentRegisteredError(error.orderNumber),
         attempt,
       };
     }
@@ -133,6 +167,15 @@ export async function placeOrderAction(
     };
   }
 
+  if (!result.cartCleared) {
+    // The order stands; only its cart still has the lines.
+    console.error(
+      JSON.stringify({
+        event: "order_cart_not_cleared",
+        orderNumber: result.order.number,
+      }),
+    );
+  }
   await discardCheckoutDraft(drafts, cart.id);
   await writeOrderAccess(result.order);
   redirect(orderConfirmationPath(result.order.number));

@@ -7,6 +7,8 @@ import type {
   ChargeResult,
   OrderRepository,
   PaymentGateway,
+  PendingReconciliation,
+  ReconciliationLog,
 } from "@/modules/orders/application/ports";
 import { createOrder, type Order } from "@/modules/orders/domain/order";
 
@@ -45,7 +47,7 @@ export function fakeOrders(initial: Order[] = []) {
   const store = new Map(initial.map((order) => [order.number, order]));
   let sequence = 0;
   const repository: OrderRepository = {
-    async nextNumber() {
+    async reserveNumber() {
       sequence += 1;
       return `MG-2026-${String(sequence).padStart(6, "0")}`;
     },
@@ -71,4 +73,16 @@ export function fakePayments(
     },
   };
   return { gateway, requests };
+}
+
+/** A ReconciliationLog keeping every entry, or failing with `failure`. */
+export function fakeReconciliations({ failure }: { failure?: Error } = {}) {
+  const entries: PendingReconciliation[] = [];
+  const log: ReconciliationLog = {
+    async record(entry) {
+      if (failure) throw failure;
+      entries.push(entry);
+    },
+  };
+  return { log, entries };
 }

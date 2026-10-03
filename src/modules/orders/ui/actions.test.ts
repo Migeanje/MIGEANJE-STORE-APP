@@ -3,10 +3,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getCartRepository } from "@/modules/cart/infrastructure";
 import { CART_COOKIE } from "@/modules/cart/infrastructure/cart-cookie";
 import { aBackorderOffer, aLine } from "@/modules/cart/testing/cart-builders";
+import {
+  type PaymentQuote,
+  paymentQuote,
+} from "@/modules/checkout/domain/payment-quote";
 import { getCheckoutDraftRepository } from "@/modules/checkout/infrastructure";
 import { aContact, BOLETA } from "@/modules/checkout/testing/checkout-builders";
 import { initialFormState } from "@/modules/checkout/ui/checkout-forms";
-import { getOrderRepository } from "@/modules/orders/infrastructure";
+import {
+  getOrderRepository,
+  getReconciliationLog,
+} from "@/modules/orders/infrastructure";
 import { ORDER_ACCESS_COOKIE } from "@/modules/orders/infrastructure/order-access-cookie";
 import { anOrder } from "@/modules/orders/testing/order-builders";
 import {
@@ -40,6 +47,8 @@ vi.mock("next/navigation", () => ({
 const refresh = vi.fn();
 vi.mock("next/cache", () => ({ refresh: () => refresh() }));
 
+const NBSP = " ";
+
 const CARD = {
   cardNumber: "4111 1111 1111 1111",
   cardExpiry: "12/30",
@@ -54,7 +63,18 @@ function form(fields: Record<string, string>): FormData {
   return data;
 }
 
-/** A cart with the real catalog price of the Prime Charger and a complete draft. */
+/** The hidden fields of the payment page that showed `quote`. */
+function shown(quote: PaymentQuote) {
+  return {
+    expectedTotal: String(quote.total),
+    quoteFingerprint: quote.fingerprint,
+  };
+}
+
+/**
+ * A cart with the real catalog price of the Prime Charger, a complete draft
+ * (shipping to Lima) and what the payment page shows for them.
+ */
 async function readyToPay({
   lines = [aLine({ quantity: 2 })],
   receipt = BOLETA,
@@ -71,7 +91,9 @@ async function readyToPay({
     contact: aContact(),
     receipt,
   });
-  return cart.id;
+  const quote = paymentQuote(lines, { departamento: "15", provincia: "1501" });
+  if (!quote) throw new Error("Lima always has a shipping quote");
+  return { cartId: cart.id, quote, pay: { ...CARD, ...shown(quote) } };
 }
 
 beforeEach(() => {
@@ -84,9 +106,9 @@ beforeEach(() => {
 
 describe("placeOrderAction", () => {
   it("pays, stores the order, empties the cart and opens the confirmation", async () => {
-    const cartId = await readyToPay();
+    const { cartId, pay } = await readyToPay();
 
-    const error = await placeOrderAction(initialFormState(), form(CARD)).catch(
+    const error = await placeOrderAction(initialFormState(), form(pay)).catch(
       (thrown: Error) => thrown,
     );
 
@@ -112,11 +134,11 @@ describe("placeOrderAction", () => {
   });
 
   it("answers card errors without echoing card data", async () => {
-    await readyToPay();
+    const { pay } = await readyToPay();
 
     const state = await placeOrderAction(
       initialFormState(),
-      form({ ...CARD, cardNumber: "4111 1111 1111 1112", acceptTerms: "" }),
+      form({ ...pay, cardNumber: "4111 1111 1111 1112", acceptTerms: "" }),
     );
 
     expect(state).toEqual({
@@ -132,11 +154,11 @@ describe("placeOrderAction", () => {
   });
 
   it("explains a declined card and keeps the cart", async () => {
-    const cartId = await readyToPay();
+    const { cartId, pay } = await readyToPay();
 
     const state = await placeOrderAction(
       initialFormState(),
-      form({ ...CARD, cardNumber: "4000 0000 0000 0002" }),
+      form({ ...pay, cardNumber: "4000 0000 0000 0002" }),
     );
 
     expect(state.formError).toEqual({
@@ -150,21 +172,21 @@ describe("placeOrderAction", () => {
   });
 
   it("only charges the test cards in demo mode", async () => {
-    await readyToPay();
+    const { pay } = await readyToPay();
     const state = await placeOrderAction(
       initialFormState(),
-      form({ ...CARD, cardNumber: "5555 5555 5555 4444" }),
+      form({ ...pay, cardNumber: "5555 5555 5555 4444" }),
     );
     expect(state.formError?.message).toContain("4111 1111 1111 1111");
   });
 
   it("asks to review a cart whose prices changed, without charging", async () => {
     // The cart remembers S/ 150.00 for a charger the catalog sells at S/ 189.90.
-    const cartId = await readyToPay({
+    const { cartId, pay } = await readyToPay({
       lines: [aLine({ unitPrice: 15000 })],
     });
 
-    const state = await placeOrderAction(initialFormState(), form(CARD));
+    const state = await placeOrderAction(initialFormState(), form(pay));
 
     expect(state.formError).toEqual({
       title: "Tu carrito cambió",
@@ -181,7 +203,7 @@ describe("placeOrderAction", () => {
   });
 
   it("explains a product that went on backorder", async () => {
-    await readyToPay({
+    const { pay } = await readyToPay({
       // The cart thinks the Nano Charger is in stock.
       lines: [
         aLine(
@@ -190,10 +212,121 @@ describe("placeOrderAction", () => {
         ),
       ],
     });
-    const state = await placeOrderAction(initialFormState(), form(CARD));
+    const state = await placeOrderAction(initialFormState(), form(pay));
     expect(state.formError?.details).toEqual([
       "Nano Charger 45W Smart Display (Blanco): ahora está en importación y llega en 15–20 días.",
     ]);
+  });
+
+  it("refuses a stale payment page (the cart changed in another tab) and shows the new total", async () => {
+    // The page said "Pagar S/ 199.90"; another tab then added 2 chargers.
+    const { cartId, pay } = await readyToPay({
+      lines: [aLine({ quantity: 1 })],
+    });
+    await getCartRepository().save({
+      id: cartId,
+      lines: [aLine({ quantity: 3 })],
+    });
+
+    const state = await placeOrderAction(initialFormState(), form(pay));
+
+    expect(state.formError).toEqual({
+      title: "Tu carrito cambió",
+      message: `Tu carrito cambió después de que abriste esta página, quizás en otra pestaña. Revisa tu pedido antes de pagar: el total ahora es S/${NBSP}579.70. No se hizo ningún cargo.`,
+    });
+    expect(state.values).toEqual({ acceptTerms: "si" });
+    // The page re-renders with the fresh summary and "Pagar S/ 579.70".
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect((await getCartRepository().get(cartId))?.lines[0]?.quantity).toBe(3);
+    expect(await getCheckoutDraftRepository().get(cartId)).not.toBeNull();
+    expect(setCookie).not.toHaveBeenCalled();
+  });
+
+  it("refuses a payment without the quote of the page", async () => {
+    await readyToPay();
+    const state = await placeOrderAction(initialFormState(), form(CARD));
+    expect(state.formError?.title).toBe("Tu carrito cambió");
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("says the payment was registered when the order cannot be stored after the charge, without inviting a retry", async () => {
+    const { cartId, pay } = await readyToPay();
+    const save = vi
+      .spyOn(getOrderRepository(), "save")
+      .mockRejectedValueOnce(new Error("disk full"));
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      const state = await placeOrderAction(initialFormState(), form(pay));
+
+      const number = /MG-\d{4}-\d{6}/.exec(state.formError?.message ?? "")?.[0];
+      expect(number).toBeDefined();
+      expect(state.formError).toEqual({
+        title: "Registramos tu pago",
+        message: `Recibimos tu pago, pero no pudimos terminar de registrar tu pedido. No vuelvas a pagar: revisaremos tu pago y te escribiremos a tu correo para confirmar tu pedido. Tu código de referencia es ${number}.`,
+      });
+      expect(state.formError?.message).not.toMatch(/inténtalo de nuevo/i);
+
+      // One structured server event, without card or personal data.
+      expect(log).toHaveBeenCalledTimes(1);
+      const event = JSON.parse(log.mock.calls[0]?.[0] as string);
+      expect(event).toEqual({
+        event: "order_persist_failed_after_charge",
+        orderNumber: number,
+        chargeId: expect.stringMatching(/^chr_demo_/),
+        amount: 38980,
+        currency: "PEN",
+        reconciliationRecorded: true,
+        failure: "disk full",
+      });
+      const logged = JSON.stringify(log.mock.calls);
+      expect(logged).not.toContain("4111");
+      expect(logged).not.toContain("ana@correo.pe");
+
+      const pending = await getReconciliationLog().list();
+      expect(pending.at(-1)).toMatchObject({
+        order: { number },
+        chargeId: event.chargeId,
+        amount: 38980,
+        cartId,
+      });
+      expect(await getOrderRepository().findByNumber(number as string)).toBe(
+        null,
+      );
+    } finally {
+      save.mockRestore();
+      log.mockRestore();
+    }
+  });
+
+  it("opens the confirmation of a stored order even when emptying the cart fails", async () => {
+    const { pay } = await readyToPay();
+    const save = vi
+      .spyOn(getCartRepository(), "save")
+      .mockRejectedValueOnce(new Error("cart store down"));
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      const error = await placeOrderAction(initialFormState(), form(pay)).catch(
+        (thrown: Error) => thrown,
+      );
+
+      const number =
+        /^NEXT_REDIRECT:\/checkout\/confirmacion\/(MG-\d{4}-\d{6})$/.exec(
+          (error as Error).message,
+        )?.[1];
+      expect(number).toBeDefined();
+      expect(
+        await getOrderRepository().findByNumber(number as string),
+      ).not.toBe(null);
+      expect(JSON.parse(log.mock.calls[0]?.[0] as string)).toEqual({
+        event: "order_cart_not_cleared",
+        orderNumber: number,
+      });
+    } finally {
+      save.mockRestore();
+      log.mockRestore();
+    }
   });
 
   it("sends an empty cart to the cart page and an incomplete checkout to its step", async () => {

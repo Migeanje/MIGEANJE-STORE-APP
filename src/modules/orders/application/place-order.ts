@@ -15,16 +15,31 @@ import {
   type CheckoutDraft,
   hasUsableReceipt,
 } from "@/modules/checkout/domain/checkout-draft";
-import { checkoutTotals } from "@/modules/checkout/domain/checkout-totals";
 import type { PaymentCard } from "@/modules/checkout/domain/payment-card";
-import { createOrder, type Order } from "@/modules/orders/domain/order";
-import type { DeclineReason, OrderRepository, PaymentGateway } from "./ports";
+import {
+  type PaymentQuote,
+  paymentQuote,
+  samePaymentQuote,
+} from "@/modules/checkout/domain/payment-quote";
+import {
+  type Order,
+  payOrder,
+  prepareOrder,
+  type UnpaidOrder,
+} from "@/modules/orders/domain/order";
+import type {
+  DeclineReason,
+  OrderRepository,
+  PaymentGateway,
+  ReconciliationLog,
+} from "./ports";
 
 export type PlaceOrderServices = {
   orders: OrderRepository;
   payments: PaymentGateway;
   products: ProductLookup;
   carts: CartRepository;
+  reconciliations: ReconciliationLog;
   now?: () => Date;
   newAccessToken?: () => string;
 };
@@ -33,6 +48,11 @@ export type PlaceOrderInput = {
   cart: Cart | null;
   draft: CheckoutDraft | null;
   card: PaymentCard;
+  /**
+   * The total and fingerprint the payment page showed ("Pagar S/ X"), as
+   * posted by the form; null when it sent none. Only compared, never charged.
+   */
+  expected: PaymentQuote | null;
   facturaEnabled: boolean;
 };
 
@@ -59,16 +79,48 @@ export type CartChange =
       from: number;
       to: number;
     }
-  | { kind: "unavailable"; sku: string; product: CartLineProduct };
+  | { kind: "unavailable"; sku: string; product: CartLineProduct }
+  | {
+      /**
+       * The cart or its shipping is not what the payment page showed (e.g. it
+       * changed in another tab): `from` is the total the page showed (null
+       * when it sent none), `to` the total to pay now.
+       */
+      kind: "quote";
+      from: number | null;
+      to: number;
+    };
 
 export type PlaceOrderError =
   | { code: "empty_cart" }
   | { code: "incomplete_checkout"; step: "contact" | "receipt" }
   | { code: "cart_changed"; changes: CartChange[] }
-  | { code: "payment_declined"; reason: DeclineReason };
+  | { code: "payment_declined"; reason: DeclineReason }
+  | {
+      /**
+       * The card WAS charged but the order could not be stored. Never invite
+       * a retry: the charge is kept for reconciliation (`recorded` says
+       * whether the record was written) and the customer is contacted.
+       */
+      code: "order_persist_failed_after_charge";
+      orderNumber: string;
+      chargeId: string;
+      amount: number;
+      /** Why it failed (an error message, for the server log). */
+      failure: string;
+      recorded: boolean;
+    };
 
 export type PlaceOrderResult =
-  | { ok: true; order: Order }
+  | {
+      ok: true;
+      order: Order;
+      /**
+       * False when the order was stored but emptying the cart failed: the
+       * order stands (the cart is a lesser problem than a second charge).
+       */
+      cartCleared: boolean;
+    }
   | { ok: false; error: PlaceOrderError };
 
 function sameAvailability(a: OfferAvailability, b: OfferAvailability) {
@@ -136,6 +188,10 @@ async function repriceCart(
   return { cart: next, changes };
 }
 
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : "unknown error";
+}
+
 /**
  * Pays and creates the order of a guest checkout:
  * 1. the cart must have lines and the draft must be complete (contact, a
@@ -143,14 +199,23 @@ async function repriceCart(
  * 2. every line is re-priced through the catalog: when a price, availability
  *    or allowed quantity changed, the refreshed cart is saved and nothing is
  *    charged (the customer reviews the new total first);
- * 3. the total (subtotal + shipping, in céntimos) is charged once;
- * 4. on approval the order is stored and the cart emptied. A declined card
- *    leaves the cart and the draft as they were.
- * The card is only handed to the payment gateway, never stored.
+ * 3. the cart must still be what the payment page showed (`expected`: total
+ *    and fingerprint); otherwise nothing is charged (e.g. it changed in
+ *    another tab). The posted total is compared, never charged;
+ * 4. the order is built and checked with a reserved number BEFORE charging,
+ *    so a bad order or a taken number never fails after the customer paid;
+ * 5. the order total (subtotal + shipping, in céntimos) is charged once;
+ * 6. on approval the order is stored with that number and the cart emptied.
+ *    A declined card leaves the cart and the draft as they were. When the
+ *    order cannot be stored after an approved charge, the charge is recorded
+ *    for reconciliation and the answer says so (never "try again"); when only
+ *    emptying the cart fails, the order stands.
+ * Anything thrown before step 5 means nothing was charged. The card is only
+ * handed to the payment gateway, never stored.
  */
 export async function placeOrder(
   services: PlaceOrderServices,
-  { cart, draft, card, facturaEnabled }: PlaceOrderInput,
+  { cart, draft, card, expected, facturaEnabled }: PlaceOrderInput,
 ): Promise<PlaceOrderResult> {
   const now = services.now ?? (() => new Date());
   const newAccessToken = services.newAccessToken ?? (() => crypto.randomUUID());
@@ -183,18 +248,42 @@ export async function placeOrder(
   const { lines } = repriced.cart;
 
   const { ubigeo } = contact.address;
-  const totals = checkoutTotals(lines, {
+  const quote = paymentQuote(lines, {
     departamento: ubigeo.departamento.code,
     provincia: ubigeo.provincia.code,
   });
-  if (totals.total === null) {
+  if (!quote) {
     throw new Error("A complete checkout always has a shipping quote");
+  }
+  if (!expected || !samePaymentQuote(expected, quote)) {
+    return {
+      ok: false,
+      error: {
+        code: "cart_changed",
+        changes: [
+          { kind: "quote", from: expected?.total ?? null, to: quote.total },
+        ],
+      },
+    };
   }
 
   const placedAt = now();
-  const number = await services.orders.nextNumber(placedAt);
+  const number = await services.orders.reserveNumber(placedAt);
+  const prepared = prepareOrder({
+    number,
+    accessToken: newAccessToken(),
+    placedAt,
+    contact,
+    receipt,
+    lines,
+  });
+  const amount = prepared.totals.total;
+  if (amount !== quote.total) {
+    throw new Error("The order total must be the quoted total");
+  }
+
   const charge = await services.payments.charge({
-    amount: totals.total,
+    amount,
     currency: "PEN",
     email: contact.customer.email,
     description: `Migeanje Store · pedido ${number}`,
@@ -207,16 +296,68 @@ export async function placeOrder(
     };
   }
 
-  const order = createOrder({
-    number,
-    accessToken: newAccessToken(),
-    placedAt,
-    contact,
-    receipt,
-    lines,
-    payment: { provider: "demo", chargeId: charge.chargeId },
-  });
-  await services.orders.save(order);
-  await clearCart(services.carts, cart.id);
-  return { ok: true, order };
+  // From here on the customer has paid: no exception may escape.
+  let order: Order;
+  try {
+    order = payOrder(prepared, { provider: "demo", chargeId: charge.chargeId });
+    await services.orders.save(order);
+  } catch (error) {
+    return {
+      ok: false,
+      error: await keepForReconciliation(services, {
+        order: prepared,
+        chargeId: charge.chargeId,
+        amount,
+        cartId: cart.id,
+        failure: messageOf(error),
+        at: now(),
+      }),
+    };
+  }
+
+  try {
+    await clearCart(services.carts, cart.id);
+    return { ok: true, order, cartCleared: true };
+  } catch {
+    return { ok: true, order, cartCleared: false };
+  }
+}
+
+/** Records an approved charge whose order could not be stored. Never throws. */
+async function keepForReconciliation(
+  services: PlaceOrderServices,
+  entry: {
+    order: UnpaidOrder;
+    chargeId: string;
+    amount: number;
+    cartId: string;
+    failure: string;
+    at: Date;
+  },
+): Promise<
+  Extract<PlaceOrderError, { code: "order_persist_failed_after_charge" }>
+> {
+  const { order, chargeId, amount, cartId, failure, at } = entry;
+  let recorded = true;
+  try {
+    await services.reconciliations.record({
+      order,
+      chargeId,
+      amount,
+      currency: "PEN",
+      cartId,
+      failure,
+      recordedAt: at.toISOString(),
+    });
+  } catch {
+    recorded = false;
+  }
+  return {
+    code: "order_persist_failed_after_charge",
+    orderNumber: order.number,
+    chargeId,
+    amount,
+    failure,
+    recorded,
+  };
 }

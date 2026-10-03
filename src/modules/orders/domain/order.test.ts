@@ -15,6 +15,8 @@ import {
   normalizeOrderNumber,
   ORDER_NUMBER_PATTERN,
   orderSchema,
+  payOrder,
+  prepareOrder,
 } from "./order";
 
 const PLACED_AT = new Date("2026-10-02T15:00:00Z"); // Friday, 10:00 in Lima
@@ -159,6 +161,38 @@ describe("createOrder", () => {
 
   it("produces data the schema accepts", () => {
     expect(orderSchema.parse(newOrder())).toEqual(newOrder());
+  });
+});
+
+describe("prepareOrder and payOrder", () => {
+  const input = {
+    number: "MG-2026-000123",
+    accessToken: TOKEN,
+    placedAt: PLACED_AT,
+    contact: aContact(),
+    receipt: BOLETA,
+    lines: [aLine({ quantity: 2 })],
+  };
+  const PAYMENT = { provider: "demo", chargeId: "chr_demo_1" } as const;
+
+  it("checks the whole order before payment, then adds the payment reference", () => {
+    const prepared = prepareOrder(input);
+
+    expect(prepared).not.toHaveProperty("payment");
+    expect(prepared.totals.total).toBe(38980);
+    expect(payOrder(prepared, PAYMENT)).toEqual(newOrder());
+  });
+
+  it("throws before payment for an order that could never be stored", () => {
+    expect(() => prepareOrder({ ...input, lines: [] })).toThrow();
+    expect(() => prepareOrder({ ...input, accessToken: "nope" })).toThrow();
+    expect(() => prepareOrder({ ...input, number: "MG-1" })).toThrow();
+  });
+
+  it("refuses a payment without a reference", () => {
+    expect(() =>
+      payOrder(prepareOrder(input), { provider: "demo", chargeId: "" }),
+    ).toThrow();
   });
 });
 

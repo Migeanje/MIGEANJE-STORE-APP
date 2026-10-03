@@ -1,13 +1,17 @@
 import type { PaymentCard } from "@/modules/checkout/domain/payment-card";
-import type { Order } from "@/modules/orders/domain/order";
+import type { Order, UnpaidOrder } from "@/modules/orders/domain/order";
 
 /**
  * Port: where orders are kept (in memory for `DATA_SOURCE=mock`, Medusa
  * orders in F3).
  */
 export interface OrderRepository {
-  /** A fresh order number for an order placed at `placedAt`, not used yet. */
-  nextNumber(placedAt: Date): Promise<string>;
+  /**
+   * Reserves a fresh order number for an order placed at `placedAt`: no
+   * stored order has it and no other call gets it, so the order can be built
+   * and checked with its final number before the card is charged.
+   */
+  reserveNumber(placedAt: Date): Promise<string>;
   /** Stores the order; the same order (same access token) may be saved again. */
   save(order: Order): Promise<void>;
   /** The order with this exact number, or null. */
@@ -37,4 +41,32 @@ export type ChargeResult =
 /** Port: charges a card (the demo gateway now, Culqi in F4). */
 export interface PaymentGateway {
   charge(request: ChargeRequest): Promise<ChargeResult>;
+}
+
+/**
+ * An approved charge whose order could not be stored: someone must reconcile
+ * it by hand (store the order or refund the charge) and contact the customer.
+ * Never card data.
+ */
+export type PendingReconciliation = {
+  /** The order as checked before the charge, with its reserved number. */
+  order: UnpaidOrder;
+  chargeId: string;
+  /** What was charged, in céntimos. */
+  amount: number;
+  currency: "PEN";
+  cartId: string;
+  /** Why the order could not be stored (an error message). */
+  failure: string;
+  /** ISO date-time. */
+  recordedAt: string;
+};
+
+/**
+ * Port: approved charges whose order could not be stored (in memory for
+ * `DATA_SOURCE=mock`). It only keeps a record: real idempotency (a Culqi
+ * idempotency key or an order intent created before the charge) belongs to F4.
+ */
+export interface ReconciliationLog {
+  record(entry: PendingReconciliation): Promise<void>;
 }

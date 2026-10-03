@@ -68,6 +68,17 @@ export const PAYMENT_FAILURE = {
     "Algo salió mal de nuestro lado. Espera un momento e inténtalo de nuevo.",
 };
 
+/**
+ * The card was charged but the order could not be stored: the charge is kept
+ * for reconciliation. Never "try again" (it would charge twice).
+ */
+export function paymentRegisteredError(reference: string) {
+  return {
+    title: "Registramos tu pago",
+    message: `Recibimos tu pago, pero no pudimos terminar de registrar tu pedido. No vuelvas a pagar: revisaremos tu pago y te escribiremos a tu correo para confirmar tu pedido. Tu código de referencia es ${reference}.`,
+  };
+}
+
 export const ORDER_NOT_FOUND_MESSAGE =
   "No encontramos un pedido con ese número y correo.";
 
@@ -100,6 +111,9 @@ function availabilityChange(to: LineAvailability, from: LineAvailability) {
 
 /** One sentence per change, e.g. "X: ahora cuesta S/ 189.90 (antes S/ 150.00)." */
 export function cartChangeText(change: CartChange): string {
+  if (change.kind === "quote") {
+    return `El total ahora es ${formatPEN(change.to)}.`;
+  }
   const name = productDisplayName(change.product);
   switch (change.kind) {
     case "price":
@@ -113,7 +127,22 @@ export function cartChangeText(change: CartChange): string {
   }
 }
 
-export function cartChangedError(changes: readonly CartChange[]) {
+type QuoteChange = Extract<CartChange, { kind: "quote" }>;
+
+export function cartChangedError(changes: readonly CartChange[]): {
+  title: string;
+  message: string;
+  details?: string[];
+} {
+  const quote = changes.find(
+    (change): change is QuoteChange => change.kind === "quote",
+  );
+  if (quote) {
+    return {
+      title: "Tu carrito cambió",
+      message: `Tu carrito cambió después de que abriste esta página, quizás en otra pestaña. Revisa tu pedido antes de pagar: el total ahora es ${formatPEN(quote.to)}. No se hizo ningún cargo.`,
+    };
+  }
   return {
     title: "Tu carrito cambió",
     message:

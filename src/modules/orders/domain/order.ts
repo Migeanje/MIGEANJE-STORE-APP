@@ -307,6 +307,31 @@ export function createOrder(input: NewOrder): Order {
   });
 }
 
+/** An order checked before payment: everything but the payment reference. */
+export type UnpaidOrder = Omit<Order, "payment">;
+
+// Stands in for the payment reference while an order is checked before the
+// charge; `payOrder` replaces it, so it is never stored.
+const PAYMENT_PENDING: OrderPayment = { provider: "demo", chargeId: "pending" };
+
+/**
+ * Builds and checks the whole order (number, lines, totals, shipping,
+ * timeline) BEFORE charging, so nothing that can be known in advance fails
+ * after the customer paid. Throws like `createOrder`.
+ */
+export function prepareOrder(input: Omit<NewOrder, "payment">): UnpaidOrder {
+  const { payment: _pending, ...order } = createOrder({
+    ...input,
+    payment: PAYMENT_PENDING,
+  });
+  return order;
+}
+
+/** The prepared order with the reference of its approved charge. */
+export function payOrder(order: UnpaidOrder, payment: OrderPayment): Order {
+  return orderSchema.parse({ ...order, payment });
+}
+
 /** The year an order placed at `placedAt` is numbered with (Lima calendar). */
 export function orderYear(placedAt: Date): number {
   return Number(limaDate(placedAt).slice(0, 4));

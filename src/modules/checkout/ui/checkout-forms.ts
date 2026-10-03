@@ -20,6 +20,10 @@ import {
   type PaymentCard,
   parseCardExpiry,
 } from "@/modules/checkout/domain/payment-card";
+import {
+  PAYMENT_QUOTE_FINGERPRINT_PATTERN,
+  type PaymentQuote,
+} from "@/modules/checkout/domain/payment-quote";
 import type { Receipt } from "@/modules/checkout/domain/receipt";
 import {
   CONTACT_MESSAGES as CONTACT,
@@ -68,6 +72,15 @@ export const PAYMENT_FIELDS = [
 ] as const;
 export type PaymentField = (typeof PAYMENT_FIELDS)[number];
 export type PaymentFormValues = Record<PaymentField, string>;
+
+/**
+ * Hidden fields of the payment form: the total (céntimos) and fingerprint the
+ * page showed (`PaymentQuote`), so the server can refuse a stale page.
+ */
+export const PAYMENT_QUOTE_FIELDS = {
+  total: "expectedTotal",
+  fingerprint: "quoteFingerprint",
+} as const;
 
 /**
  * What a step form answers (`useActionState`). `values` is sent back so a
@@ -317,4 +330,22 @@ export function paymentFormSchema(now: Date) {
         holderName: values.cardHolder,
       }),
     );
+}
+
+const paymentQuoteFormSchema = z.strictObject({
+  total: z
+    .string()
+    .regex(/^\d{1,15}$/)
+    .transform(Number)
+    .pipe(z.int().min(1)),
+  fingerprint: z.string().regex(PAYMENT_QUOTE_FINGERPRINT_PATTERN),
+});
+
+/** The quote the payment page posted; null when it is missing or malformed. */
+export function readPaymentQuote(formData: FormData): PaymentQuote | null {
+  const parsed = paymentQuoteFormSchema.safeParse({
+    total: formData.get(PAYMENT_QUOTE_FIELDS.total) ?? "",
+    fingerprint: formData.get(PAYMENT_QUOTE_FIELDS.fingerprint) ?? "",
+  });
+  return parsed.success ? parsed.data : null;
 }

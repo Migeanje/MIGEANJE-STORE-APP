@@ -20,18 +20,24 @@ const MAX_ATTEMPTS = 100;
 /**
  * OrderRepository over a Map, for `DATA_SOURCE=mock` and tests. Orders are
  * validated before they are stored and deep-copied on every read and write;
- * a number is never reused by another order.
+ * a number is never reused by another order. Reserved numbers are kept in
+ * memory until their order is saved; one whose charge was declined stays
+ * reserved and unused (numbers are random, so gaps say nothing).
  */
 export function createInMemoryOrderRepository({
   store = new Map(),
   randomSequence = () => randomInt(0, 1_000_000),
 }: InMemoryOrderRepositoryOptions = {}): OrderRepository {
+  const reserved = new Set<string>();
   return {
-    async nextNumber(placedAt) {
+    async reserveNumber(placedAt) {
       const year = orderYear(placedAt);
       for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
         const number = formatOrderNumber(year, randomSequence());
-        if (!store.has(number)) return number;
+        if (!store.has(number) && !reserved.has(number)) {
+          reserved.add(number);
+          return number;
+        }
       }
       throw new Error(`No free order number for ${year}`);
     },
@@ -44,6 +50,7 @@ export function createInMemoryOrderRepository({
         );
       }
       store.set(valid.number, structuredClone(valid));
+      reserved.delete(valid.number);
     },
     async findByNumber(number) {
       const order = store.get(number);
