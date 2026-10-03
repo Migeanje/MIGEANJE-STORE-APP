@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { expectNoAxeViolations } from "@/test/a11y";
 import type { AddToCartAction } from "./add-to-cart";
+import { AddToCartFeedbackProvider } from "./add-to-cart-feedback";
 import { PurchaseForm } from "./purchase-form";
 
 describe("PurchaseForm", () => {
@@ -38,6 +39,67 @@ describe("PurchaseForm", () => {
     const formData = action.mock.calls[0]?.[1];
     expect(formData?.get("sku")).toBe("ANK-A2688");
     expect(formData?.get("cantidad")).toBe("2");
+  });
+
+  it("tells the cart once about each successful add", async () => {
+    const user = userEvent.setup();
+    const onAdded = vi.fn();
+    const action = vi.fn<AddToCartAction>(async () => ({
+      ok: true,
+      message: "Agregaste Prime Charger 100W, 3 puertos al carrito",
+    }));
+    const { rerender } = render(
+      <AddToCartFeedbackProvider onAdded={onAdded}>
+        <PurchaseForm sku="ANK-A2688" maxQuantity={5} action={action} />
+      </AddToCartFeedbackProvider>,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Agregar al carrito" }),
+    );
+    await waitFor(() => expect(onAdded).toHaveBeenCalledTimes(1));
+    expect(onAdded).toHaveBeenCalledWith({
+      ok: true,
+      message: "Agregaste Prime Charger 100W, 3 puertos al carrito",
+    });
+
+    // A new listener identity does not report the same answer again.
+    rerender(
+      <AddToCartFeedbackProvider onAdded={(result) => onAdded(result)}>
+        <PurchaseForm sku="ANK-A2688" maxQuantity={5} action={action} />
+      </AddToCartFeedbackProvider>,
+    );
+    expect(onAdded).toHaveBeenCalledTimes(1);
+
+    await user.click(
+      screen.getByRole("button", { name: "Agregar al carrito" }),
+    );
+    await waitFor(() => expect(onAdded).toHaveBeenCalledTimes(2));
+  });
+
+  it("does not tell the cart about a failed add", async () => {
+    const user = userEvent.setup();
+    const onAdded = vi.fn();
+    const action = vi.fn<AddToCartAction>(async () => ({
+      ok: false,
+      message: "Ya tienes 5 unidades en tu carrito.",
+    }));
+    render(
+      <AddToCartFeedbackProvider onAdded={onAdded}>
+        <PurchaseForm sku="ANK-A2688" maxQuantity={5} action={action} />
+      </AddToCartFeedbackProvider>,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Agregar al carrito" }),
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Ya tienes 5 unidades en tu carrito.",
+      ),
+    );
+    expect(onAdded).not.toHaveBeenCalled();
   });
 
   it("says the cart is not ready yet without an action", async () => {

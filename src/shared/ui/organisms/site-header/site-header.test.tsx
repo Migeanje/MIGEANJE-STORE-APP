@@ -130,6 +130,20 @@ describe("SiteHeader", () => {
     },
   );
 
+  it("renders the cart slot instead of the default cart link", () => {
+    render(
+      <SiteHeader
+        categories={CATEGORIES}
+        cart={<button type="button">Carrito, 2 productos</button>}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Carrito, 2 productos" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /^Carrito/ })).toBeNull();
+  });
+
   it("links to the account page", () => {
     render(<SiteHeader categories={CATEGORIES} />);
 

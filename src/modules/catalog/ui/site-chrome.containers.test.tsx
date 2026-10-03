@@ -36,6 +36,18 @@ describe("SiteHeaderContainer", () => {
       screen.getByRole("link", { name: "Carrito, 0 productos" }),
     ).toBeInTheDocument();
   });
+
+  it("shows the cart control it is given", async () => {
+    render(
+      await SiteHeaderContainer({
+        cart: <button type="button">Carrito, 2 productos</button>,
+      }),
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Carrito, 2 productos" }),
+    ).toBeInTheDocument();
+  });
 });
 
 describe("SiteFooterContainer", () => {
@@ -63,5 +75,23 @@ describe("CategoryShortcutsContainer", () => {
     ).toBeInTheDocument();
     expect(linksIn(nav)).toEqual(CATEGORY_LINKS);
     await expectNoAxeViolations(container);
+  });
+
+  // E.g. the empty cart page under the open cart drawer (which hides the page).
+  it("takes another heading id, so two never share an id", async () => {
+    render(
+      <>
+        {await CategoryShortcutsContainer()}
+        {await CategoryShortcutsContainer({ headingId: "carrito-categorias" })}
+      </>,
+    );
+
+    const navs = screen.getAllByRole("navigation", {
+      name: "Explora por categoría",
+    });
+    expect(navs.map((nav) => nav.getAttribute("aria-labelledby"))).toEqual([
+      "category-shortcuts",
+      "carrito-categorias",
+    ]);
   });
 });

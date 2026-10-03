@@ -1,7 +1,7 @@
 "use client";
 
 import { ShoppingCart } from "lucide-react";
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import { Button } from "@/shared/ui/atoms/button";
 import { QuantityStepper } from "@/shared/ui/molecules/quantity-stepper";
 import {
@@ -9,6 +9,7 @@ import {
   type AddToCartAction,
   type AddToCartResult,
 } from "./add-to-cart";
+import { useAddToCartFeedback } from "./add-to-cart-feedback";
 
 // DRAFT: copy pending owner review. Shown until the cart (M5) is connected.
 const CART_NOT_READY: AddToCartResult = {
@@ -32,13 +33,25 @@ export type PurchaseFormProps = {
 /**
  * Quantity + "Agregar al carrito" for the selected variant. A form posting
  * `sku` and `cantidad` to the cart's server action (so it works before
- * hydration), with its answer announced politely below the button.
+ * hydration), with its answer announced politely below the button. After a
+ * successful add it notifies the cart (AddToCartFeedbackProvider), which
+ * opens the drawer.
  */
 export function PurchaseForm({ sku, maxQuantity, action }: PurchaseFormProps) {
   const [result, formAction, pending] = useActionState<
     AddToCartResult | null,
     FormData
   >(action ?? cartNotReady, null);
+  const onAdded = useAddToCartFeedback();
+  const reported = useRef<AddToCartResult | null>(null);
+
+  // Each answer is a new object: report every successful add exactly once,
+  // even if the listener changes identity.
+  useEffect(() => {
+    if (!result?.ok || reported.current === result) return;
+    reported.current = result;
+    onAdded?.(result);
+  }, [result, onAdded]);
 
   return (
     <form action={formAction} className="flex flex-col gap-3">

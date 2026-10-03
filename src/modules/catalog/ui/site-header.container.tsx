@@ -1,12 +1,25 @@
+import type { ReactNode } from "react";
 import { getCatalogRepository } from "@/modules/catalog/infrastructure";
 import { SiteHeader } from "@/shared/ui/organisms/site-header";
 import { loadCategoryLinks } from "./category-links";
 
+export type SiteHeaderContainerProps = {
+  /**
+   * The cart control, composed by the root layout from the cart module
+   * (count from the cart cookie, opens the drawer). Without it the header
+   * shows a plain link to /carrito with 0 items.
+   */
+  cart?: ReactNode;
+};
+
 /**
  * Server Component: the site header with the catalog categories as primary
- * navigation. The cart count is 0 until the cart module exists (M5).
+ * navigation. The catalog never imports the cart: the cart control arrives
+ * as a slot.
  */
-export async function SiteHeaderContainer() {
+export async function SiteHeaderContainer({
+  cart,
+}: SiteHeaderContainerProps = {}) {
   const categories = await loadCategoryLinks(getCatalogRepository());
-  return <SiteHeader categories={categories} cartCount={0} />;
+  return <SiteHeader categories={categories} cart={cart} />;
 }

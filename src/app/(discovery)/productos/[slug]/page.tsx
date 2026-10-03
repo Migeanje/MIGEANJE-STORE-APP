@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { addToCartAction } from "@/modules/cart/ui/actions";
 import {
   productMetadata,
   productStaticParams,
@@ -23,6 +24,11 @@ export default async function ProductPage({
   searchParams,
 }: PageProps<"/productos/[slug]">) {
   const { slug } = await params;
-  // M5: pass the cart's server action here as `addToCart`.
-  return <ProductPageContainer slug={slug} searchParams={await searchParams} />;
+  return (
+    <ProductPageContainer
+      slug={slug}
+      searchParams={await searchParams}
+      addToCart={addToCartAction}
+    />
+  );
 }

@@ -4,17 +4,25 @@ import ProductPage, {
   generateMetadata,
   generateStaticParams,
 } from "@/app/(discovery)/productos/[slug]/page";
+import { addToCartAction } from "@/modules/cart/ui/actions";
+import type { AddToCartAction } from "@/modules/catalog/ui/add-to-cart";
 import type { SearchParamsInput } from "@/modules/catalog/ui/catalog-url";
+
+vi.mock("@/modules/cart/ui/actions", () => ({
+  addToCartAction: async () => ({ ok: true, message: "Agregado" }),
+}));
 
 vi.mock("@/modules/catalog/ui/product-page.container", () => ({
   ProductPageContainer: ({
     slug,
     searchParams,
+    addToCart,
   }: {
     slug: string;
     searchParams: SearchParamsInput;
+    addToCart?: AddToCartAction;
   }) => (
-    <p>
+    <p data-cart={addToCart === addToCartAction ? "conectado" : "no"}>
       Producto {slug} {JSON.stringify(searchParams)}
     </p>
   ),
@@ -41,6 +49,15 @@ describe("ProductPage", () => {
     expect(
       screen.getByText('Producto prime-100w {"variante":"ank-a2688"}'),
     ).toBeInTheDocument();
+  });
+
+  it("connects the cart's add-to-cart server action", async () => {
+    render(await ProductPage(props("prime-100w")));
+
+    expect(screen.getByText(/Producto prime-100w/)).toHaveAttribute(
+      "data-cart",
+      "conectado",
+    );
   });
 
   it("prerenders every product", async () => {
