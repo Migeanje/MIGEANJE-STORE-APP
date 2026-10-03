@@ -127,6 +127,26 @@ describe("mock catalog fixtures", () => {
 });
 
 describe("createMockCatalogRepository", () => {
+  it("shares deeply frozen data across the process", async () => {
+    const product = await createMockCatalogRepository().getProductBySlug(
+      "anker-prime-charger-100w-3-puertos",
+    );
+    if (!product) throw new Error("Missing fixture");
+
+    expect(Object.isFrozen(mockCatalog)).toBe(true);
+    expect(Object.isFrozen(mockCatalog.products[0]?.variants[0])).toBe(true);
+    expect(() => {
+      product.name = "Otro";
+    }).toThrow(TypeError);
+    expect(
+      (
+        await createMockCatalogRepository().getProductBySlug(
+          "anker-prime-charger-100w-3-puertos",
+        )
+      )?.name,
+    ).toBe(product.name);
+  });
+
   it("serves the parsed fixtures", async () => {
     const repository = createMockCatalogRepository();
 

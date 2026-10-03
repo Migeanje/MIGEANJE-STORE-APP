@@ -3,15 +3,20 @@ import { describe, expect, it } from "vitest";
 import { createInMemoryCatalogRepository } from "@/modules/catalog/infrastructure/in-memory-catalog-repository";
 import {
   buildTestCatalog,
+  CABLES,
   CHARGERS,
 } from "@/modules/catalog/testing/catalog-builders";
+import type { CatalogRepository } from "./catalog-repository";
 import { compareProducts, ProductComparisonError } from "./compare-products";
 
 const repository = createInMemoryCatalogRepository(buildTestCatalog());
 
-async function reasonFor(slugs: string[]): Promise<string> {
+async function reasonFor(
+  slugs: string[],
+  from: CatalogRepository = repository,
+): Promise<string> {
   try {
-    await compareProducts(repository, slugs);
+    await compareProducts(from, slugs);
   } catch (error) {
     if (error instanceof ProductComparisonError) return error.reason;
     throw error;
@@ -115,6 +120,23 @@ describe("compareProducts", () => {
     ["mixed_categories", ["nano-45w", "cable-usb-c-1m"]],
   ])("rejects with reason %s for %j", async (reason, slugs) => {
     expect(await reasonFor(slugs)).toBe(reason);
+  });
+
+  it("rejects with reason category_not_found when the data source lacks the products' category", async () => {
+    const { brands, products } = buildTestCatalog();
+    // An inconsistent data source: the chargers' category is not listed.
+    const inconsistent = createInMemoryCatalogRepository({
+      categories: [CABLES],
+      brands,
+      products,
+    });
+
+    expect(await reasonFor(["nano-45w", "prime-100w"], inconsistent)).toBe(
+      "category_not_found",
+    );
+    await expect(
+      compareProducts(inconsistent, ["nano-45w", "prime-100w"]),
+    ).rejects.toThrow('Unknown category "cargadores"');
   });
 
   it("explains the error in its message", async () => {

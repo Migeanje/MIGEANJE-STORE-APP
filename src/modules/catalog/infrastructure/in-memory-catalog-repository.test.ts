@@ -72,4 +72,44 @@ describe("createInMemoryCatalogRepository", () => {
     ]);
     expect(await repository.searchProducts("  ")).toEqual([]);
   });
+
+  it("returns frozen data, so one caller cannot change what later calls return", async () => {
+    const shared = createInMemoryCatalogRepository(buildTestCatalog());
+    const [category] = await shared.listCategories();
+    const product = await shared.getProductBySlug("nano-45w");
+    if (!category || !product) throw new Error("Missing test data");
+
+    expect(() => {
+      category.name = "Otra";
+    }).toThrow(TypeError);
+    expect(() => {
+      product.variants[0].price = 1;
+    }).toThrow(TypeError);
+    expect(() => {
+      product.specs.maxPower = 1;
+    }).toThrow(TypeError);
+    expect(() => product.tags.push("oferta")).toThrow(TypeError);
+    const brands = await shared.listBrands();
+    expect(() => brands.push({ slug: "x", name: "X" })).toThrow(TypeError);
+
+    expect((await shared.listCategories())[0]?.name).toBe("Cargadores");
+    expect((await shared.getProductBySlug("nano-45w"))?.variants[0]).toEqual(
+      expect.objectContaining({ price: 24890 }),
+    );
+  });
+
+  it("keeps its own snapshot: later changes to the source catalog do not leak in", async () => {
+    const source = buildTestCatalog();
+    const snapshot = createInMemoryCatalogRepository(source);
+
+    source.categories.pop();
+    if (source.products[0]) source.products[0].name = "Cambiado";
+
+    expect(await snapshot.listCategories()).toHaveLength(2);
+    expect((await snapshot.getProductBySlug("nano-45w"))?.name).toBe(
+      "Nano Charger 45W",
+    );
+    // The caller's catalog is not frozen as a side effect.
+    expect(Object.isFrozen(source.products)).toBe(false);
+  });
 });

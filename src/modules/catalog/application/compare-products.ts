@@ -15,11 +15,14 @@ export type ComparisonErrorReason =
   | "count"
   | "duplicate"
   | "not_found"
-  | "mixed_categories";
+  | "mixed_categories"
+  | "category_not_found";
 
 /**
  * A comparison that cannot be built. The slugs come from the URL, so the page
- * catches it and maps `reason` to customer copy.
+ * catches it and maps `reason` to customer copy. `category_not_found` is not
+ * the customer's fault: the data source lists products of a category it does
+ * not return.
  */
 export class ProductComparisonError extends Error {
   readonly reason: ComparisonErrorReason;
@@ -94,7 +97,10 @@ export async function compareProducts(
   const categories = await repository.listCategories();
   const category = categories.find(({ slug }) => slug === categorySlugs[0]);
   if (!category) {
-    throw new Error(`Unknown category "${categorySlugs[0]}"`);
+    throw new ProductComparisonError(
+      "category_not_found",
+      `Unknown category "${categorySlugs[0]}"`,
+    );
   }
 
   const rows = orderedSpecs(category)
