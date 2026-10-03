@@ -56,6 +56,17 @@ src/
 - Routes are in Spanish: `/productos/[slug]`, `/categorias/[slug]`, `/marcas/[slug]`.
 - Create module folders only when they get their first file (git does not track empty folders).
 
+## Modules
+
+- Layout per context, e.g. `src/modules/catalog/`: `domain/` (types + Zod schemas + pure rules such as derived price, availability, filters, facets, search), `application/` (the port `catalog-repository.ts` + use cases), `infrastructure/` (adapters + composition root), `ui/`, and `testing/` (test-only builders).
+- Ports and adapters: use cases take the port (`CatalogRepository`) as their first argument and never import `infrastructure/`. Adapters implement the port; `createInMemoryCatalogRepository` holds the reference semantics for filters, sort and search.
+- Composition root: `infrastructure/index.ts` (`getCatalogRepository()`, marked `server-only`) picks the adapter from `DATA_SOURCE` (`mock` when unset; `medusa` throws until F3). Only Server Components and server actions call it; UI components receive data, never adapters. Tests mock `server-only` with `vi.mock("server-only", () => ({}))`.
+- `DATA_SOURCE=mock|medusa`: copy `.env.example` to `.env.local`.
+- Fixtures (`infrastructure/fixtures/*.ts`) are parsed with the domain `catalogSchema` when `catalog.mock.ts` loads, so a bad fixture fails at startup; `catalog.mock.test.ts` asserts they parse. Mark guessed prices with `// price: estimated`. Product images in mocks are the neutral silhouettes in `public/mock/products/<category>.svg`.
+- Money is integer céntimos everywhere (`moneySchema` = the `formatPEN` rules); product price and availability are derived from the variants (`productPrice`, `productAvailability`), never stored.
+- Domain errors fail loudly with a clear message; user input (URL filters, pages, search text) is sanitized or clamped instead.
+- Domain and use-case tests run in Node: start them with `// @vitest-environment node`.
+
 ## Design tokens
 
 - All tokens live in `src/shared/ui/tokens/tokens.css` (imported by `src/app/globals.css`).

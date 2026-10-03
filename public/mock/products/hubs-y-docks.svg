@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="640" height="640" role="img">
+  <title>Hub o dock (imagen referencial)</title>
+  <path d="M120 320 C80 320 70 260 70 220" fill="none" stroke="#9EA3AB" stroke-width="16" stroke-linecap="round"/>
+  <rect x="120" y="260" width="400" height="120" rx="30" fill="#C9CDD3"/>
+  <rect x="120" y="260" width="400" height="120" rx="30" fill="none" stroke="#9EA3AB" stroke-width="6"/>
+  <rect x="170" y="306" width="48" height="26" rx="6" fill="#5F646C"/>
+  <rect x="236" y="306" width="48" height="26" rx="6" fill="#5F646C"/>
+  <rect x="302" y="308" width="34" height="22" rx="11" fill="#5F646C"/>
+  <rect x="354" y="308" width="34" height="22" rx="11" fill="#5F646C"/>
+  <rect x="406" y="304" width="62" height="30" rx="4" fill="#5F646C"/>
+</svg>

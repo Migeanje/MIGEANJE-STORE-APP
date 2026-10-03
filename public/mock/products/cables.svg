@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="640" height="640" role="img">
+  <title>Cable (imagen referencial)</title>
+  <path d="M190 150 C190 330 450 260 450 440" fill="none" stroke="#9EA3AB" stroke-width="22" stroke-linecap="round"/>
+  <rect x="160" y="80" width="60" height="96" rx="16" fill="#C9CDD3"/>
+  <rect x="174" y="52" width="32" height="34" rx="8" fill="#8A8F98"/>
+  <rect x="420" y="430" width="60" height="96" rx="16" fill="#C9CDD3"/>
+  <rect x="434" y="520" width="32" height="34" rx="8" fill="#8A8F98"/>
+</svg>
