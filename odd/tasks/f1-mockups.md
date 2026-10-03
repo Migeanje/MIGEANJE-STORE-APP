@@ -41,7 +41,7 @@ The design system (`f1-design-system`) is done and on `main`. F1 objectives 3 an
 | M4 | Product page (gallery, variants, specs, availability, expert review rubric, compare) + Comparator | Delegated (writer) | 2+ non-trivial files | Done — `28ba3c0`, `abdce1c`, `8860bcb` (branch `feat/f1-product`) |
 | M5 | Cart module (domain, mock adapter, server actions, cookie) + cart drawer | Delegated (writer) | 2+ non-trivial files | Done — `07924cb`, `90f6d16`, `fb508d9`, `6376e3f` (branch `feat/f1-cart`); high risk → independent verifier |
 | M5.1 | Restore cached catalog pages (Engram #15 3.1): reading the cart cookie in the root layout made every route dynamic; fix via `cacheComponents` + Suspense around the cart slot, or a client-fetched cart count | Delegated (writer) | `next.config.ts` + layout | Pending |
-| M6 | Checkout 3 steps (contact + shipping with ubigeo, receipt boleta / factura flag off, simulated Culqi payment) + order confirmation | Delegated (writer) | 2+ non-trivial files | Pending |
+| M6 | Checkout 3 steps (contact + shipping with ubigeo, receipt boleta / factura flag off, simulated Culqi payment) + order confirmation | Delegated (writer) | 2+ non-trivial files | Done — `6a922df`, `6cf956f`, `d1c5431`, `9202edc`, `3a5af7c` (branch `feat/f1-checkout`); payments/PII → independent verifier |
 | M7 | Orders: public order status ("En importación") | Delegated (writer) | 2+ non-trivial files | Pending |
 | M8 | Libro de Reclamaciones form + constancia | Delegated (writer) | 2+ non-trivial files | Pending |
 | M9 | Account (login/register/reset, profile, addresses, my orders, favorites) + trust & legal pages ("Cómo elegimos", terms, privacy, shipping & returns, warranties) | Delegated (writer) | 2+ non-trivial files | Pending |
@@ -107,6 +107,18 @@ Decisions made without the owner during the overnight run, within approved desig
 - M5: Header count via a `cart` slot (catalog does not import cart); drawer opened through `AddToCartFeedbackProvider`; header link becomes a button after hydration; drawer closes on navigation.
 - M5: Cart lines snapshot name/image/href (`?variante=`). All new copy marked DRAFT. **Regression to fix (M5.1):** cookie read in the root layout makes every route dynamic, against #15 3.1.
 
+- M6: Order numbers `MG-2026-` + 6 random digits (non-sequential, hides sales volume). `en_importacion` reached at payment for backorder orders.
+- M6: Any price/availability/limit change blocks payment (nothing charged, cart refreshed for review). No card data stored, not even last four digits. Demo mode accepts only the two test cards.
+- M6: Mobile phone = 9 digits starting with 9. Factura flag off → receipt step only confirms the boleta; flag in `src/shared/config/features.ts`.
+- M6: Confirmation cookie `mg_order` lasts 1 hour; afterwards the order opens with number + email. Delivery dates skip weekends but not public holidays. Shipping: Lima S/ 10, Callao S/ 12, rest S/ 20 (DRAFT). Mock ubigeo: 25 departamentos + subset of provincias/distritos (some Piura/Arequipa codes to verify against INEI).
+
+## M6 evidence
+
+- RED → GREEN per layer. Deps: `react-hook-form@7.89.0`, `@hookform/resolvers@5.9.1`. Writer verification: install, lint (524 files), typecheck, test (1,557–1,558; one run hit the known flaky timeout), build, build-storybook ok. Headless: 18 axe checks with 0 violations, 60/60 flow checks (in-stock Lima declined→approved card → confirmation → cart 0; backorder Arequipa with lead time; no-JS contact and receipt steps).
+- Parent: raised Vitest `testTimeout` to 20 s (`3603fbc`) — the flaky category axe test timed out at 5 s under parallel load (independent verifier confirmed the cause); full suite 1,558 passed 3/3. `pnpm lint` ok.
+- Open: concurrent double payment not prevented (needs a Culqi idempotency key in F4); `deepFreeze` duplicated in catalog and shared; `/terminos` and `/pedidos/seguimiento` pending (M9, M7).
+- M5 independent verifier (worktree at `6376e3f`): **PASS**. Medium follow-ups: lost updates under concurrent cart writes (F3), in-memory carts never expire (guard against production use of mock), add-at-limit keeps a stale line availability (checkout re-prices).
+
 ## M5 evidence
 
 - RED → GREEN: domain (44), application (22), infrastructure (35), actions (37). Writer verification: install, lint (411 files), typecheck, test (1,280 ×2), build, build-storybook ok. Headless axe: 0 violations in 12 checks (375/1280px); 18/18 flow checks; add-to-cart and remove work without JS.
@@ -135,4 +147,4 @@ Decisions made without the owner during the overnight run, within approved desig
 
 ## Next step
 
-M6 (checkout + order creation) on `feat/f1-checkout`, in parallel with the M5 independent verifier.
+M7 (public order status) on `feat/f1-orders`, in parallel with the M6 independent verifier (worktree at `3a5af7c`).
