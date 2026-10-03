@@ -1,5 +1,7 @@
-import type { AvailabilityStatus } from "./availability";
-import type { Category, SpecKind, SpecValue } from "./category";
+import { type AvailabilityStatus, isAvailabilityStatus } from "./availability";
+import type { Category, SpecDefinition, SpecKind, SpecValue } from "./category";
+import type { CategoryFacets } from "./facets";
+import { slugSchema } from "./primitives";
 import { type Product, productAvailability, productPrice } from "./product";
 
 /**
@@ -114,14 +116,35 @@ export function filterProducts(
 
 type RangeFilter = Extract<SpecFilter, { kind: "range" }>;
 
-function finite(value: number | undefined): number | undefined {
-  return value !== undefined && Number.isFinite(value) ? value : undefined;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** Drops non-finite bounds and swaps reversed ones. */
-function sanitizeRange(filter: RangeFilter): RangeFilter {
-  let min = finite(filter.min);
-  let max = finite(filter.max);
+function finite(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value)
+    ? value
+    : undefined;
+}
+
+/** Trimmed, non-blank, distinct strings that pass `accept`; the rest is dropped. */
+function distinctStrings(
+  values: readonly unknown[],
+  accept: (value: string) => boolean,
+): string[] {
+  const kept = new Set<string>();
+  for (const value of values) {
+    if (typeof value !== "string") continue;
+    const trimmed = value.trim();
+    if (trimmed !== "" && accept(trimmed)) kept.add(trimmed);
+  }
+  return [...kept];
+}
+
+/** Drops non-numeric and non-finite bounds and swaps reversed ones. */
+function sanitizeRange(rawMin: unknown, rawMax: unknown): RangeFilter | null {
+  let min = finite(rawMin);
+  let max = finite(rawMax);
+  if (min === undefined && max === undefined) return null;
   if (min !== undefined && max !== undefined && min > max) {
     [min, max] = [max, min];
   }
@@ -132,33 +155,90 @@ function sanitizeRange(filter: RangeFilter): RangeFilter {
 }
 
 /**
- * Keeps only the spec filters the category can apply: known, filterable keys
- * whose filter fits the spec kind. Filters come from the URL, so bad input is
- * dropped or repaired (non-finite bounds removed, reversed bounds swapped),
- * never thrown.
+ * One spec filter, or null when it cannot apply: wrong shape, wrong kind for
+ * the spec, nothing left after cleaning, or (with facets) no product offers it.
+ */
+function sanitizeSpecFilter(
+  raw: unknown,
+  definition: SpecDefinition,
+  facets: CategoryFacets | undefined,
+): SpecFilter | null {
+  if (!isRecord(raw) || raw.kind !== FILTER_KIND[definition.kind]) return null;
+  const facet = facets?.specs.find(({ key }) => key === definition.key);
+  if (facets !== undefined && facet === undefined) return null;
+
+  switch (raw.kind) {
+    case "range":
+      return sanitizeRange(raw.min, raw.max);
+    case "options": {
+      if (!Array.isArray(raw.values)) return null;
+      const known =
+        facet?.kind === "options"
+          ? new Set(facet.options.map(({ value }) => value))
+          : undefined;
+      const values = distinctStrings(
+        raw.values,
+        (value) => known === undefined || known.has(value),
+      );
+      return values.length === 0 ? null : { kind: "options", values };
+    }
+    default:
+      return { kind: "toggle" };
+  }
+}
+
+function isSlug(value: string): boolean {
+  return slugSchema.safeParse(value).success;
+}
+
+/**
+ * Keeps only the filters the category can apply. Filters come from the URL,
+ * so this takes untrusted input and never throws: anything malformed (null
+ * entries, wrong types, unknown statuses, non-slug brands, unknown or
+ * non-filterable spec keys, filters of the wrong kind) is dropped, values are
+ * trimmed and deduped, non-finite bounds are removed and reversed bounds
+ * swapped. Spec filters left empty are dropped; a `brands`, `availability` or
+ * `specs` field given with the right shape stays, even if empty.
+ *
+ * With `facets` (computed from the whole category), brands, option values and
+ * spec filters must also be ones the category's products offer.
  */
 export function sanitizeFilters(
-  filters: ProductFilters,
+  filters: unknown,
   category: Category,
+  facets?: CategoryFacets,
 ): ProductFilters {
-  const { specs, ...rest } = filters;
-  if (specs === undefined) return rest;
+  if (!isRecord(filters)) return {};
+  const sanitized: ProductFilters = {};
 
-  const definitions = new Map(
-    category.specSchema.map((definition) => [definition.key, definition]),
-  );
-  const kept: Record<string, SpecFilter> = {};
-  for (const [key, filter] of Object.entries(specs)) {
-    const definition = definitions.get(key);
-    if (
-      !definition?.filterable ||
-      FILTER_KIND[definition.kind] !== filter.kind
-    ) {
-      continue;
-    }
-    kept[key] = filter.kind === "range" ? sanitizeRange(filter) : filter;
+  if (Array.isArray(filters.brands)) {
+    const known = facets && new Set(facets.brands.map(({ value }) => value));
+    sanitized.brands = distinctStrings(
+      filters.brands,
+      (slug) => isSlug(slug) && (known === undefined || known.has(slug)),
+    );
   }
-  return { ...rest, specs: kept };
+  if (Array.isArray(filters.availability)) {
+    sanitized.availability = distinctStrings(
+      filters.availability,
+      () => true,
+    ).filter(isAvailabilityStatus);
+  }
+  if (isRecord(filters.specs)) {
+    const specs: Record<string, SpecFilter> = {};
+    for (const definition of category.specSchema) {
+      if (!definition.filterable) continue;
+      if (!Object.hasOwn(filters.specs, definition.key)) continue;
+      const filter = sanitizeSpecFilter(
+        filters.specs[definition.key],
+        definition,
+        facets,
+      );
+      if (filter !== null) specs[definition.key] = filter;
+    }
+    sanitized.specs = specs;
+  }
+  return sanitized;
 }
 
 const NAME_COLLATOR = new Intl.Collator("es-PE", { sensitivity: "base" });
@@ -189,7 +269,8 @@ function clampInteger(value: number, min: number, max: number): number {
 /**
  * One page of `items`. The page size is clamped to 1..100 and the page to the
  * existing pages (an empty list has one empty page). Without pagination every
- * item comes back as page 1.
+ * item comes back as page 1, with a page size of the total (at least 1, so
+ * the page size is never 0).
  */
 export function paginate<T>(
   items: readonly T[],
@@ -197,7 +278,13 @@ export function paginate<T>(
 ): Page<T> {
   const total = items.length;
   if (pagination === undefined) {
-    return { items: [...items], total, page: 1, pageSize: total, pageCount: 1 };
+    return {
+      items: [...items],
+      total,
+      page: 1,
+      pageSize: Math.max(1, total),
+      pageCount: 1,
+    };
   }
   const pageSize = clampInteger(pagination.pageSize, 1, MAX_PAGE_SIZE);
   const pageCount = Math.max(1, Math.ceil(total / pageSize));

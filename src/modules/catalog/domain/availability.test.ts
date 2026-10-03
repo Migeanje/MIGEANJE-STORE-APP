@@ -1,9 +1,11 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import {
+  AVAILABILITY_STATUSES,
   type Availability,
   availabilitySchema,
   bestAvailability,
+  isAvailabilityStatus,
   isPurchasable,
 } from "./availability";
 
@@ -32,6 +34,29 @@ describe("availabilitySchema", () => {
   ])("rejects %s", (_label, availability) => {
     expect(availabilitySchema.safeParse(availability).success).toBe(false);
   });
+});
+
+describe("AVAILABILITY_STATUSES", () => {
+  it("lists every status the schema accepts, best first", () => {
+    expect(AVAILABILITY_STATUSES).toEqual([
+      "in_stock",
+      "backorder",
+      "unavailable",
+    ]);
+  });
+});
+
+describe("isAvailabilityStatus", () => {
+  it.each(["in_stock", "backorder", "unavailable"])("accepts %s", (value) => {
+    expect(isAvailabilityStatus(value)).toBe(true);
+  });
+
+  it.each(["preorder", "toString", "", null, 1, undefined])(
+    "rejects %j",
+    (value) => {
+      expect(isAvailabilityStatus(value)).toBe(false);
+    },
+  );
 });
 
 describe("isPurchasable", () => {

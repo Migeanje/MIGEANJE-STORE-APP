@@ -4,6 +4,7 @@ import {
   buildTestCatalog,
   CHARGERS,
 } from "@/modules/catalog/testing/catalog-builders";
+import { computeFacets } from "./facets";
 import {
   filterProducts,
   type ProductFilters,
@@ -136,6 +137,123 @@ describe("sanitizeFilters", () => {
       ),
     ).toEqual({ specs: { maxPower: { kind: "range", min: 45, max: 100 } } });
   });
+
+  it("drops filters left empty after sanitizing", () => {
+    expect(
+      sanitizeFilters(
+        {
+          specs: {
+            maxPower: { kind: "range", min: Number.NaN },
+            ports: { kind: "options", values: [] },
+          },
+        },
+        CHARGERS,
+      ),
+    ).toEqual({ specs: {} });
+  });
+
+  it("validates brands and availability, and dedupes everything", () => {
+    expect(
+      sanitizeFilters(
+        {
+          brands: ["anker", "Not A Slug", "", "anker", "ugreen"],
+          availability: ["in_stock", "soon", "in_stock", "backorder"],
+          specs: {
+            ports: {
+              kind: "options",
+              values: ["USB-C", " USB-A ", "", "  ", "USB-C"],
+            },
+          },
+        },
+        CHARGERS,
+      ),
+    ).toEqual({
+      brands: ["anker", "ugreen"],
+      availability: ["in_stock", "backorder"],
+      specs: { ports: { kind: "options", values: ["USB-C", "USB-A"] } },
+    });
+  });
+
+  it("ignores null and malformed entries without throwing", () => {
+    const malformed: unknown = {
+      brands: ["anker", null, 3, { slug: "ugreen" }],
+      availability: [null, "unavailable", 1],
+      specs: {
+        maxPower: null,
+        ports: { kind: "options", values: ["USB-C", 3, null] },
+        technology: { kind: "options", values: "GaN" },
+        display: "yes",
+        weight: [],
+        inBox: { kind: "toggle" },
+        nope: { kind: "range", min: "5" },
+      },
+    };
+
+    expect(sanitizeFilters(malformed, CHARGERS)).toEqual({
+      brands: ["anker"],
+      availability: ["unavailable"],
+      specs: { ports: { kind: "options", values: ["USB-C"] } },
+    });
+    expect(
+      sanitizeFilters(
+        { specs: { maxPower: { kind: "range", min: "5", max: 65 } } },
+        CHARGERS,
+      ),
+    ).toEqual({ specs: { maxPower: { kind: "range", max: 65 } } });
+  });
+
+  it.each([null, undefined, "marca=anker", 42, []])(
+    "returns no filters for %j",
+    (input) => {
+      expect(sanitizeFilters(input, CHARGERS)).toEqual({});
+    },
+  );
+
+  it("drops lists and spec maps of the wrong shape", () => {
+    expect(
+      sanitizeFilters(
+        { brands: "anker", availability: { in_stock: true }, specs: [] },
+        CHARGERS,
+      ),
+    ).toEqual({});
+  });
+
+  it("keeps only the brands, options and toggles the facets offer", () => {
+    const facets = computeFacets(chargers, CHARGERS);
+
+    expect(
+      sanitizeFilters(
+        {
+          brands: ["anker", "sony"],
+          specs: {
+            ports: { kind: "options", values: ["USB-C", "Lightning"] },
+            technology: { kind: "options", values: ["Grafeno"] },
+            display: { kind: "toggle" },
+          },
+        },
+        CHARGERS,
+        facets,
+      ),
+    ).toEqual({
+      brands: ["anker"],
+      specs: {
+        ports: { kind: "options", values: ["USB-C"] },
+        display: { kind: "toggle" },
+      },
+    });
+
+    const withoutDisplay = computeFacets(
+      chargers.filter((product) => product.specs.display !== true),
+      CHARGERS,
+    );
+    expect(
+      sanitizeFilters(
+        { specs: { display: { kind: "toggle" } } },
+        CHARGERS,
+        withoutDisplay,
+      ),
+    ).toEqual({ specs: {} });
+  });
 });
 
 describe("sortProducts", () => {
@@ -193,6 +311,16 @@ describe("paginate", () => {
       total: 5,
       page: 1,
       pageSize: 5,
+      pageCount: 1,
+    });
+  });
+
+  it("never returns a page size of 0, even for an empty list", () => {
+    expect(paginate([])).toEqual({
+      items: [],
+      total: 0,
+      page: 1,
+      pageSize: 1,
       pageCount: 1,
     });
   });

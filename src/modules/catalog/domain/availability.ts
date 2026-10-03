@@ -26,6 +26,16 @@ const RANK: Record<AvailabilityStatus, number> = {
   unavailable: 2,
 };
 
+/** Every availability status, best first. */
+export const AVAILABILITY_STATUSES = Object.keys(RANK) as AvailabilityStatus[];
+
+/** Narrows untrusted input (e.g. from the URL) to a status. */
+export function isAvailabilityStatus(
+  value: unknown,
+): value is AvailabilityStatus {
+  return typeof value === "string" && Object.hasOwn(RANK, value);
+}
+
 /** In stock and backorder can be bought; unavailable cannot ("Avísame"). */
 export function isPurchasable(availability: Availability): boolean {
   return availability.status !== "unavailable";

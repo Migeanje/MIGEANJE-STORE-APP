@@ -1,8 +1,15 @@
+import { AVAILABILITY_STATUSES, type AvailabilityStatus } from "./availability";
 import { type Category, orderedSpecs, type SpecDefinition } from "./category";
-import type { Product } from "./product";
+import { type Product, productAvailability } from "./product";
 
 /** One selectable value and how many products have it. */
 export type FacetOption = { value: string; label: string; count: number };
+
+/** A derived availability and how many products have it. The UI names it. */
+export type AvailabilityFacetOption = {
+  value: AvailabilityStatus;
+  count: number;
+};
 
 /** A filter the category page can offer, built from a filterable spec. */
 export type Facet =
@@ -17,7 +24,12 @@ export type Facet =
   | { kind: "options"; key: string; label: string; options: FacetOption[] }
   | { kind: "toggle"; key: string; label: string; count: number };
 
-export type CategoryFacets = { brands: FacetOption[]; specs: Facet[] };
+export type CategoryFacets = {
+  brands: FacetOption[];
+  /** Best first; statuses no product has are left out. */
+  availability: AvailabilityFacetOption[];
+  specs: Facet[];
+};
 
 const COLLATOR = new Intl.Collator("es-PE", {
   sensitivity: "base",
@@ -86,10 +98,23 @@ function specFacet(
   }
 }
 
+function availabilityOptions(
+  products: readonly Product[],
+): AvailabilityFacetOption[] {
+  const statuses = products.map(
+    (product) => productAvailability(product).status,
+  );
+  return AVAILABILITY_STATUSES.flatMap((value) => {
+    const count = statuses.filter((status) => status === value).length;
+    return count === 0 ? [] : [{ value, count }];
+  });
+}
+
 /**
  * Facets for a category page: one per filterable spec (in display order) plus
- * the brands. Facets that no product can match are left out. Compute them from
- * the unfiltered category so options do not disappear while filtering.
+ * the brands and the derived availability. Facets that no product can match
+ * are left out. Compute them from the unfiltered category so options do not
+ * disappear while filtering.
  */
 export function computeFacets(
   products: readonly Product[],
@@ -101,5 +126,5 @@ export function computeFacets(
   const brands = countOptions(
     products.map(({ brand }) => ({ value: brand.slug, label: brand.name })),
   );
-  return { brands, specs };
+  return { brands, availability: availabilityOptions(products), specs };
 }

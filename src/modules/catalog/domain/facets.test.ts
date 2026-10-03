@@ -52,6 +52,17 @@ describe("computeFacets", () => {
     ]);
   });
 
+  it("counts the derived product availability, best first", () => {
+    expect(computeFacets(chargers, CHARGERS).availability).toEqual([
+      { value: "in_stock", count: 2 },
+      { value: "backorder", count: 1 },
+      { value: "unavailable", count: 1 },
+    ]);
+    expect(computeFacets(chargers.slice(0, 1), CHARGERS).availability).toEqual([
+      { value: "backorder", count: 1 },
+    ]);
+  });
+
   it("omits facets that no product can match", () => {
     const withoutValues = chargers.map((product) => ({
       ...product,
@@ -64,6 +75,10 @@ describe("computeFacets", () => {
   });
 
   it("returns no facets for an empty category", () => {
-    expect(computeFacets([], CHARGERS)).toEqual({ brands: [], specs: [] });
+    expect(computeFacets([], CHARGERS)).toEqual({
+      brands: [],
+      availability: [],
+      specs: [],
+    });
   });
 });

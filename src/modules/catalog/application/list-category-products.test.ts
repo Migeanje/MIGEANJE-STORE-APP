@@ -27,6 +27,15 @@ describe("listCategoryProducts", () => {
     expect(listing?.results.total).toBe(4);
   });
 
+  it("counts every product of the category, whatever the filters", async () => {
+    const listing = await listCategoryProducts(repository, "cargadores", {
+      filters: { brands: ["ugreen"] },
+    });
+
+    expect(listing?.results.total).toBe(2);
+    expect(listing?.categoryTotal).toBe(4);
+  });
+
   it("filters, sorts and paginates the results", async () => {
     const listing = await listCategoryProducts(repository, "cargadores", {
       filters: {
@@ -76,5 +85,31 @@ describe("listCategoryProducts", () => {
     expect(listing?.results.items.map((product) => product.slug)).toEqual([
       "nano-45w",
     ]);
+  });
+
+  it("drops brands and options the category does not offer", async () => {
+    const listing = await listCategoryProducts(repository, "cargadores", {
+      filters: {
+        brands: ["ugreen", "sony"],
+        specs: { ports: { kind: "options", values: ["USB-A", "Lightning"] } },
+      },
+    });
+
+    expect(listing?.filters).toEqual({
+      brands: ["ugreen"],
+      specs: { ports: { kind: "options", values: ["USB-A"] } },
+    });
+    expect(listing?.results.items.map((product) => product.slug)).toEqual([
+      "nexode-65w",
+    ]);
+  });
+
+  it("never throws on malformed filters from the URL", async () => {
+    const listing = await listCategoryProducts(repository, "cargadores", {
+      filters: { brands: [null], specs: { ports: null } } as never,
+    });
+
+    expect(listing?.filters).toEqual({ brands: [], specs: {} });
+    expect(listing?.results.total).toBe(4);
   });
 });
