@@ -28,7 +28,7 @@ export type FormFieldProps = Omit<ComponentProps<"div">, "children"> & {
   error?: ReactNode;
   /** Shows the Label marker and marks the control required. */
   required?: boolean;
-  /** Id for the control. Generated with `useId` when omitted. */
+  /** Id for the control. Generated with `useId` when omitted or empty. */
   controlId?: string;
   /**
    * Renders the control from the computed props. Defaults to an `Input`:
@@ -58,7 +58,8 @@ export function FormField({
   ...props
 }: FormFieldProps) {
   const generatedId = useId();
-  const id = controlId ?? generatedId;
+  // An empty id would break htmlFor and the hint/error ids: treat it as absent.
+  const id = controlId || generatedId;
   const hintId = `${id}-hint`;
   const errorId = `${id}-error`;
   const hasHint = !isEmptyNode(hint);

@@ -1,9 +1,16 @@
 import type { Metadata } from "next";
+import { AccountHeaderLink } from "@/modules/account/ui/account-header-link";
+import { CartHeaderButton } from "@/modules/cart/ui/cart-header-button";
+import { CartRoot } from "@/modules/cart/ui/cart-root";
+import { CategoryShortcutsContainer } from "@/modules/catalog/ui/category-shortcuts.container";
+import { SiteFooterContainer } from "@/modules/catalog/ui/site-footer.container";
+import { SiteHeaderContainer } from "@/modules/catalog/ui/site-header.container";
 import { geistMono, geistSans } from "@/shared/ui/tokens/fonts";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Migeanje Store",
+  // Pages set their own title ("Cargadores"); the template adds the store.
+  title: { default: "Migeanje Store", template: "%s · Migeanje Store" },
   description:
     "Accesorios tecnológicos premium en Perú, elegidos para que tu equipo rinda al máximo.",
 };
@@ -14,7 +21,38 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="es-PE"
       className={`${geistSans.variable} ${geistMono.variable}`}
     >
-      <body className="antialiased">{children}</body>
+      <body className="flex min-h-dvh flex-col antialiased">
+        {/*
+          No cookie is read here, so pages that do not need one stay static:
+          the browser loads the header's cart count, the drawer and the
+          account name after the page.
+        */}
+        <CartRoot
+          emptyState={
+            <CategoryShortcutsContainer headingId="carrito-categorias" />
+          }
+        >
+          <a
+            href="#contenido"
+            className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:inline-flex focus:h-11 focus:items-center focus:rounded-pill focus:bg-primary focus:px-6 focus:font-medium focus:text-primary-foreground"
+          >
+            Saltar al contenido
+          </a>
+          <SiteHeaderContainer
+            cart={<CartHeaderButton />}
+            account={<AccountHeaderLink />}
+          />
+          {/* tabIndex -1: the skip link moves focus here in every browser. */}
+          <main
+            id="contenido"
+            tabIndex={-1}
+            className="flex flex-1 flex-col outline-none"
+          >
+            {children}
+          </main>
+          <SiteFooterContainer />
+        </CartRoot>
+      </body>
     </html>
   );
 }

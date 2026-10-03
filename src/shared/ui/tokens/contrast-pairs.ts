@@ -61,11 +61,22 @@ export const NON_TEXT_PAIRS: readonly ContrastPair[] = [
   })),
 ];
 
+/**
+ * The print ("paper") theme: under `@media print` tokens.css maps surfaces
+ * to `--paper`, text to `--ink`/`--ink-muted` and fills to `--ink`.
+ */
+export const PRINT_PAIRS: readonly ContrastPair[] = [
+  { fg: "--ink", bg: "--paper", min: TEXT_MIN },
+  { fg: "--ink-muted", bg: "--paper", min: TEXT_MIN },
+  { fg: "--paper", bg: "--ink", min: TEXT_MIN },
+];
+
 /** Every allowed pair, in the order tokens.test.ts checks them. */
 export const CONTRAST_PAIRS: readonly ContrastPair[] = [
   ...TEXT_PAIRS,
   ...FILLED_PAIRS,
   ...NON_TEXT_PAIRS,
+  ...PRINT_PAIRS,
 ];
 
 /**

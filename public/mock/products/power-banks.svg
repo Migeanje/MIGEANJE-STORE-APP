@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="640" height="640" role="img">
+  <title>Power bank (imagen referencial)</title>
+  <rect x="190" y="110" width="260" height="420" rx="40" fill="#C9CDD3"/>
+  <rect x="190" y="110" width="260" height="420" rx="40" fill="none" stroke="#9EA3AB" stroke-width="6"/>
+  <rect x="240" y="170" width="160" height="90" rx="12" fill="#5F646C"/>
+  <rect x="262" y="198" width="70" height="34" rx="6" fill="#AEB3BA"/>
+  <rect x="290" y="490" width="60" height="18" rx="9" fill="#5F646C"/>
+</svg>

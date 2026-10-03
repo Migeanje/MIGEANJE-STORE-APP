@@ -49,11 +49,40 @@
   /* Unavailable LED ring (non-text, >= 3:1). Not for text on surface-raised. */
   --led-off: #8a8379;
 
+  /* Print ("paper"): only the `@media print` block below uses these. */
+  --paper: #ffffff;
+  --ink: #0f0e0c;
+  --ink-muted: #5c564e;
+
   /* Motion. Use with `duration-(--duration-base)`. */
   --duration-fast: 120ms; /* LED, hover */
   --duration-base: 240ms; /* drawer, toggles */
   --duration-slow: 480ms; /* section reveal */
   --duration-story: 800ms; /* hero only */
+}
+
+/*
+ * Print theme: dark ink on white paper (browsers skip backgrounds by
+ * default, so screen colors would print cream on white). It only redefines
+ * :root values, like any theme; components never change. Fills (primary,
+ * destructive) print as ink.
+ */
+@media print {
+  :root {
+    color-scheme: light;
+    --background: var(--paper);
+    --card: var(--paper);
+    --surface-raised: var(--paper);
+    --foreground: var(--ink);
+    --muted-foreground: var(--ink-muted);
+    --primary: var(--ink);
+    --primary-foreground: var(--paper);
+    --destructive: var(--ink);
+    --destructive-foreground: var(--paper);
+    --border: var(--ink-muted);
+    --input: var(--ink-muted);
+    --led-off: var(--ink-muted);
+  }
 }
 
 /* Static tokens: identical in every theme. */

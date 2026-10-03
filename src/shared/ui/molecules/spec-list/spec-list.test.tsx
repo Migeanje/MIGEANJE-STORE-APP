@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { expectNoAxeViolations } from "@/test/a11y";
 import { type Spec, SpecList } from "./spec-list";
 
@@ -21,6 +21,10 @@ function pairs() {
 }
 
 describe("SpecList", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("renders a description list with one term and definition per spec, in order", () => {
     const { container } = render(<SpecList specs={CHARGER} />);
 
@@ -91,6 +95,23 @@ describe("SpecList", () => {
     const { container } = render(<SpecList specs={[]} />);
 
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it("throws an Error naming a duplicate label", () => {
+    // React logs the render error before rethrowing it; keep the output clean.
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    expect(() =>
+      render(
+        <SpecList
+          specs={[
+            { label: "Peso", value: 112, unit: "g" },
+            { label: "Puertos", value: "2 × USB-C" },
+            { label: "Peso", value: 75, unit: "g" },
+          ]}
+        />,
+      ),
+    ).toThrow('SpecList labels must be unique, got "Peso" twice');
   });
 
   it("forwards native props and merges className", () => {

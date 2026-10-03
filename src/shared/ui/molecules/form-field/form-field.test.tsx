@@ -47,6 +47,15 @@ describe("FormField", () => {
     expect(screen.getByText(ERROR)).toHaveAttribute("id", "email-error");
   });
 
+  it("treats an empty controlId as absent and generates the id", () => {
+    render(<FormField controlId="" label="Correo electrónico" hint={HINT} />);
+
+    const input = screen.getByRole("textbox", { name: "Correo electrónico" });
+    expect(input.id).not.toBe("");
+    expect(input).toHaveAttribute("aria-describedby", `${input.id}-hint`);
+    expect(input).toHaveAccessibleDescription(HINT);
+  });
+
   it("describes the control with its hint", () => {
     render(<FormField label="Correo electrónico" hint={HINT} />);
 

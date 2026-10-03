@@ -6,6 +6,7 @@ import {
   FILLED_PAIRS,
   NON_TEXT_MIN,
   NON_TEXT_PAIRS,
+  PRINT_PAIRS,
   TEXT_MIN,
   TEXT_PAIRS,
 } from "../tokens/contrast-pairs";
@@ -81,6 +82,16 @@ const GROUPS: TokenGroup[] = [
       { name: "input", note: "Form field borders (at least 3:1)." },
     ],
   },
+  {
+    title: "Print",
+    description:
+      "Under @media print the surfaces become paper and the text ink (tokens.css), so pages such as the complaint constancia print legibly.",
+    tokens: [
+      { name: "paper", note: "Printed surfaces." },
+      { name: "ink", note: "Printed text and fills." },
+      { name: "ink-muted", note: "Printed secondary text and lines." },
+    ],
+  },
 ];
 
 // The pairs tokens.test.ts enforces (contrast-pairs.ts), with shadcn aliases
@@ -88,6 +99,7 @@ const GROUPS: TokenGroup[] = [
 const TEXT_ROWS = collapseAliases(TEXT_PAIRS);
 const FILLED_ROWS = collapseAliases(FILLED_PAIRS);
 const NON_TEXT_ROWS = collapseAliases(NON_TEXT_PAIRS);
+const PRINT_ROWS = collapseAliases(PRINT_PAIRS);
 
 const cssVar = (name: string) => `--${name}`;
 /** `--muted-foreground` -> `muted-foreground`, as the swatches name tokens. */
@@ -99,10 +111,9 @@ const ALL_COLOR_VARS = GROUPS.flatMap((group) =>
 
 const CONTRAST_VARS = [
   ...new Set(
-    [...TEXT_ROWS, ...FILLED_ROWS, ...NON_TEXT_ROWS].flatMap((pair) => [
-      pair.fg,
-      pair.bg,
-    ]),
+    [...TEXT_ROWS, ...FILLED_ROWS, ...NON_TEXT_ROWS, ...PRINT_ROWS].flatMap(
+      (pair) => [pair.fg, pair.bg],
+    ),
   ),
 ];
 
@@ -272,6 +283,17 @@ function ContrastReport() {
           caption="Non-text tokens on surfaces"
           pairs={NON_TEXT_ROWS}
           kind="non-text"
+          values={values}
+        />
+      </DocSection>
+      <DocSection
+        title="Print"
+        description="The @media print theme: ink on paper. Borders print as ink-muted."
+      >
+        <ContrastTable
+          caption="Print tokens"
+          pairs={PRINT_ROWS}
+          kind="text"
           values={values}
         />
       </DocSection>
