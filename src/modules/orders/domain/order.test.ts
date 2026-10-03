@@ -7,6 +7,7 @@ import {
   BOLETA,
 } from "@/modules/checkout/testing/checkout-builders";
 import {
+  advanceOrder,
   createOrder,
   currentStatus,
   formatOrderNumber,
@@ -48,6 +49,20 @@ describe("order numbers", () => {
 
   it("normalizes what a customer types", () => {
     expect(normalizeOrderNumber("  mg-2026-000123 ")).toBe("MG-2026-000123");
+  });
+
+  it("accepts spaces instead of dashes, inner spaces and no dashes at all", () => {
+    expect(normalizeOrderNumber("mg 2026 000123")).toBe("MG-2026-000123");
+    expect(normalizeOrderNumber("MG-2026 - 000 123")).toBe("MG-2026-000123");
+    expect(normalizeOrderNumber("mg2026000123")).toBe("MG-2026-000123");
+  });
+
+  it("keeps anything else invalid (without spaces, uppercased)", () => {
+    expect(normalizeOrderNumber("mg-2026-1")).toBe("MG-2026-1");
+    expect(normalizeOrderNumber("  ")).toBe("");
+    expect(ORDER_NUMBER_PATTERN.test(normalizeOrderNumber("2026000123"))).toBe(
+      false,
+    );
   });
 });
 
@@ -173,5 +188,150 @@ describe("orderSchema", () => {
         lines: [{ ...line, lineTotal: 1 }],
       }).success,
     ).toBe(false);
+  });
+
+  const AT = "2026-10-02T15:00:00.000Z";
+  const LATER = "2026-10-03T15:00:00.000Z";
+
+  it("accepts a timeline whose reached statuses come first, in order", () => {
+    const order = newOrder();
+    expect(
+      orderSchema.safeParse({
+        ...order,
+        timeline: [
+          { status: "pagado", at: AT },
+          { status: "preparando", at: AT },
+          { status: "en_camino", at: LATER },
+          { status: "entregado", at: null },
+        ],
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rejects a timeline with statuses missing, repeated or out of order", () => {
+    const order = newOrder();
+    const timelines = [
+      [
+        { status: "pagado", at: AT },
+        { status: "en_camino", at: null },
+        { status: "entregado", at: null },
+      ],
+      [
+        { status: "pagado", at: AT },
+        { status: "preparando", at: null },
+        { status: "preparando", at: null },
+        { status: "en_camino", at: null },
+        { status: "entregado", at: null },
+      ],
+      [
+        { status: "pagado", at: AT },
+        { status: "en_camino", at: null },
+        { status: "preparando", at: null },
+        { status: "entregado", at: null },
+      ],
+    ];
+    for (const timeline of timelines) {
+      expect(orderSchema.safeParse({ ...order, timeline }).success).toBe(false);
+    }
+  });
+
+  it("has 'en importación' exactly when a line is on backorder", () => {
+    const inStock = newOrder();
+    expect(
+      orderSchema.safeParse({
+        ...inStock,
+        timeline: initialTimeline({ hasBackorder: true, placedAt: PLACED_AT }),
+      }).success,
+    ).toBe(false);
+
+    const backorder = newOrder({
+      contact: anArequipaContact(),
+      lines: [aLine({}, aBackorderOffer())],
+    });
+    expect(
+      orderSchema.safeParse({
+        ...backorder,
+        timeline: initialTimeline({ hasBackorder: false, placedAt: PLACED_AT }),
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects a reached status after a pending one, or dates going back", () => {
+    const order = newOrder();
+    expect(
+      orderSchema.safeParse({
+        ...order,
+        timeline: [
+          { status: "pagado", at: AT },
+          { status: "preparando", at: null },
+          { status: "en_camino", at: LATER },
+          { status: "entregado", at: null },
+        ],
+      }).success,
+    ).toBe(false);
+    expect(
+      orderSchema.safeParse({
+        ...order,
+        timeline: [
+          { status: "pagado", at: LATER },
+          { status: "preparando", at: AT },
+          { status: "en_camino", at: null },
+          { status: "entregado", at: null },
+        ],
+      }).success,
+    ).toBe(false);
+    expect(
+      orderSchema.safeParse({
+        ...order,
+        timeline: [
+          { status: "pagado", at: null },
+          { status: "preparando", at: null },
+          { status: "en_camino", at: null },
+          { status: "entregado", at: null },
+        ],
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("advanceOrder", () => {
+  it("reaches the next status at the given time, without changing the input", () => {
+    const order = newOrder();
+    const at = new Date("2026-10-02T18:30:00Z");
+
+    const preparing = advanceOrder(order, at);
+
+    expect(currentStatus(preparing)).toBe("preparando");
+    expect(preparing.timeline[1]).toEqual({
+      status: "preparando",
+      at: "2026-10-02T18:30:00.000Z",
+    });
+    expect(currentStatus(order)).toBe("pagado");
+  });
+
+  it("goes from 'en importación' to preparing and on until delivered", () => {
+    let order = newOrder({
+      contact: anArequipaContact(),
+      lines: [aLine({}, aBackorderOffer())],
+    });
+    const statuses = [];
+    for (let day = 1; day <= 3; day += 1) {
+      order = advanceOrder(order, new Date(Date.UTC(2026, 9, 2 + day * 10)));
+      statuses.push(currentStatus(order));
+    }
+    expect(statuses).toEqual(["preparando", "en_camino", "entregado"]);
+  });
+
+  it("throws for a delivered order or a time before the last status", () => {
+    let order = newOrder();
+    for (let step = 1; step <= 3; step += 1) {
+      order = advanceOrder(order, new Date(PLACED_AT.getTime() + step * 1000));
+    }
+    expect(() => advanceOrder(order, new Date("2026-10-20T00:00:00Z"))).toThrow(
+      "already delivered",
+    );
+    expect(() =>
+      advanceOrder(newOrder(), new Date("2026-10-01T00:00:00Z")),
+    ).toThrow(RangeError);
   });
 });

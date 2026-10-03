@@ -23,19 +23,35 @@ import { CHECKOUT_STEP_PATHS } from "@/modules/checkout/ui/checkout-paths";
 import type { PaymentFormState } from "@/modules/checkout/ui/pay-action";
 import { findOrder } from "@/modules/orders/application/find-order";
 import { placeOrder } from "@/modules/orders/application/place-order";
+import { trackOrder } from "@/modules/orders/application/track-order";
 import {
   getOrderRepository,
   getPaymentGateway,
+  getTrackingAttempts,
 } from "@/modules/orders/infrastructure";
-import { writeOrderAccess } from "@/modules/orders/infrastructure/order-access-cookie";
+import { readClientKey } from "@/modules/orders/infrastructure/client-key";
+import {
+  clearOrderAccess,
+  writeOrderAccess,
+} from "@/modules/orders/infrastructure/order-access-cookie";
 import { features } from "@/shared/config/features";
 import {
   cartChangedError,
   declinedError,
   ORDER_NOT_FOUND_MESSAGE,
   PAYMENT_FAILURE,
+  TRACKING_COPY,
 } from "./order-copy";
-import { orderConfirmationPath } from "./order-paths";
+import {
+  ORDER_TRACKING_PATH,
+  orderConfirmationPath,
+  orderTrackingHref,
+} from "./order-paths";
+import {
+  TRACKING_FIELDS,
+  type TrackingFormState,
+  trackingFormSchema,
+} from "./tracking-form";
 
 /*
  * Orders server actions. `placeOrderAction` is the checkout's `PayAction`
@@ -143,4 +159,60 @@ export async function unlockOrderAction(
 
   await writeOrderAccess(order);
   redirect(orderConfirmationPath(order.number));
+}
+
+/**
+ * Public order tracking (fields `number` and `email`, posted so the email
+ * never reaches a URL). On success this browser remembers the order in the
+ * access cookie and the tracking page shows its status (also after a
+ * refresh, for an hour). Wrong data always gets the same neutral answer, and
+ * a client with too many failures is paused.
+ */
+export async function trackOrderAction(
+  previous: TrackingFormState,
+  formData: FormData,
+): Promise<TrackingFormState> {
+  const values = readFormValues(formData, TRACKING_FIELDS);
+  const attempt = previous.attempt + 1;
+  const parsed = trackingFormSchema.safeParse(values);
+  if (!parsed.success) {
+    return {
+      values,
+      errors: fieldErrorsOf(parsed.error),
+      formError: null,
+      attempt,
+    };
+  }
+
+  let result: Awaited<ReturnType<typeof trackOrder>>;
+  try {
+    result = await trackOrder(
+      { orders: getOrderRepository(), attempts: getTrackingAttempts() },
+      { clientKey: await readClientKey(), ...parsed.data },
+    );
+  } catch (error) {
+    // The message only: never the email.
+    console.error(
+      "Tracking an order failed:",
+      error instanceof Error ? error.message : "unknown error",
+    );
+    return { values, errors: {}, formError: TRACKING_COPY.failure, attempt };
+  }
+
+  if (!result.ok) {
+    const formError =
+      result.reason === "too_many_attempts"
+        ? TRACKING_COPY.tooManyAttempts
+        : TRACKING_COPY.notFound;
+    return { values, errors: {}, formError, attempt };
+  }
+
+  await writeOrderAccess(result.order);
+  redirect(orderTrackingHref(result.order.number));
+}
+
+/** "Consultar otro pedido": forgets this browser's order and shows the form. */
+export async function trackAnotherOrderAction(): Promise<void> {
+  await clearOrderAccess();
+  redirect(ORDER_TRACKING_PATH);
 }

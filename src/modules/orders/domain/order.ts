@@ -74,6 +74,32 @@ export const timelineEntrySchema = z.strictObject({
   at: z.iso.datetime().nullable(),
 });
 
+type TimelineShape = readonly { status: OrderStatus; at: string | null }[];
+
+/** Every status in ORDER_STATUSES order (`en_importacion` only with backorder). */
+function hasExpectedStatuses(
+  timeline: TimelineShape,
+  hasBackorder: boolean,
+): boolean {
+  const expected = ORDER_STATUSES.filter(
+    (status) => status !== "en_importacion" || hasBackorder,
+  );
+  return (
+    timeline.length === expected.length &&
+    timeline.every((entry, index) => entry.status === expected[index])
+  );
+}
+
+/** Reached statuses come first (at least `pagado`), with dates never going back. */
+function isProgressive(timeline: TimelineShape): boolean {
+  const reached = timeline.filter((entry) => entry.at !== null);
+  if (reached.length === 0) return false;
+  const prefix = timeline.slice(0, reached.length);
+  if (prefix.some((entry) => entry.at === null)) return false;
+  const times = reached.map((entry) => Date.parse(entry.at as string));
+  return times.every((time, index) => index === 0 || time >= times[index - 1]);
+}
+
 export const orderSchema = z
   .strictObject({
     number: orderNumberSchema,
@@ -113,7 +139,24 @@ export const orderSchema = z
     (order) =>
       order.totals.total === order.totals.subtotal + order.totals.shipping,
     { message: "total must be subtotal + shipping", path: ["totals"] },
-  );
+  )
+  .refine(
+    (order) =>
+      hasExpectedStatuses(
+        order.timeline,
+        order.lines.some((line) => line.availability.status === "backorder"),
+      ),
+    {
+      message:
+        "timeline must list every status in order, with en_importacion only for backorder orders",
+      path: ["timeline"],
+    },
+  )
+  .refine((order) => isProgressive(order.timeline), {
+    message:
+      "timeline must reach pagado first and every later status in order, with dates never going back",
+    path: ["timeline"],
+  });
 
 export type OrderLine = z.infer<typeof orderLineSchema>;
 export type TimelineEntry = z.infer<typeof timelineEntrySchema>;
@@ -136,9 +179,17 @@ export function formatOrderNumber(year: number, sequence: number): string {
   return `MG-${year}-${String(sequence).padStart(6, "0")}`;
 }
 
-/** What a customer types, trimmed and uppercased ("mg-2026-1" stays invalid). */
+const TYPED_ORDER_NUMBER = /^MG-?(\d{4})-?(\d{6})$/;
+
+/**
+ * What a customer types, without spaces and uppercased; spaces or missing
+ * dashes between the parts are fine ("mg 2026 000123", "MG2026000123").
+ * Anything else stays invalid ("mg-2026-1" -> "MG-2026-1").
+ */
 export function normalizeOrderNumber(input: string): string {
-  return input.trim().toUpperCase();
+  const compact = input.replace(/\s+/g, "").toUpperCase();
+  const parts = TYPED_ORDER_NUMBER.exec(compact);
+  return parts ? `MG-${parts[1]}-${parts[2]}` : compact;
 }
 
 /**
@@ -167,6 +218,30 @@ export function currentStatus(order: Pick<Order, "timeline">): OrderStatus {
   const latest = reached.at(-1);
   if (!latest) throw new Error("An order always reaches at least one status");
   return latest.status;
+}
+
+/**
+ * The order with its next status reached at `at` (e.g. the warehouse starts
+ * preparing it). Throws for a delivered order, and a RangeError for a time
+ * before the status it is in now. The input is not changed.
+ */
+export function advanceOrder(order: Order, at: Date): Order {
+  const next = order.timeline.findIndex((entry) => entry.at === null);
+  if (next === -1) {
+    throw new Error(`Order ${order.number} is already delivered`);
+  }
+  const last = order.timeline[next - 1]?.at;
+  if (last && at.getTime() < Date.parse(last)) {
+    throw new RangeError(
+      `Order ${order.number} cannot reach a status before ${last}, got ${at.toISOString()}`,
+    );
+  }
+  return orderSchema.parse({
+    ...order,
+    timeline: order.timeline.map((entry, index) =>
+      index === next ? { ...entry, at: at.toISOString() } : entry,
+    ),
+  });
 }
 
 export type NewOrder = {

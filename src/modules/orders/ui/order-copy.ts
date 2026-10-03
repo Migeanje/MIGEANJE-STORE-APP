@@ -16,6 +16,50 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   entregado: "Entregado",
 };
 
+/** One sentence per status on the tracking timeline (reads well done or pending). */
+export const ORDER_STATUS_DESCRIPTIONS: Record<OrderStatus, string> = {
+  pagado: "Confirmamos tu pago.",
+  en_importacion: "Pedimos tus productos al proveedor y los traemos al Perú.",
+  preparando: "Revisamos y empacamos tu pedido.",
+  en_camino: "El courier lleva tu pedido a tu dirección.",
+  entregado: "Tu pedido llega a la dirección de entrega.",
+};
+
+/** What "En importación" means, while an order is importing. */
+export function importNote(leadTimeDays: { min: number; max: number }) {
+  return {
+    title: "Tu pedido está en importación",
+    paragraphs: [
+      "Pedimos tus productos al proveedor especialmente para ti apenas confirmamos tu pago.",
+      `La importación suele tomar ${leadTimeLabel(leadTimeDays)} hábiles y ya está incluida en la fecha estimada de entrega.`,
+      "Te escribiremos a tu correo en cada paso: cuando lleguen tus productos, cuando preparemos tu pedido y cuando salga a reparto.",
+    ],
+  };
+}
+
+/** Where tracking updates go (the email partly hidden). */
+export function updatesNote(maskedEmail: string): string {
+  return `Te avisamos de cada cambio por correo a ${maskedEmail}.`;
+}
+
+/** A backorder line once its import is over. */
+export const IMPORTED_LINE_LABEL = "Llegó de importación";
+
+export const RECEIPT_TYPE_LABELS = {
+  boleta: "Boleta de venta electrónica",
+  factura: "Factura electrónica",
+} as const;
+
+/**
+ * Help on the tracking page. No contact channel (email, WhatsApp) is defined
+ * yet: add it here when it exists.
+ */
+export const TRACKING_HELP_LINKS = [
+  { href: "/libro-de-reclamaciones", label: "Libro de Reclamaciones" },
+  { href: "/envios-y-devoluciones", label: "Envíos y devoluciones" },
+  { href: "/garantias", label: "Garantías" },
+] as const;
+
 export const PAYMENT_FAILED_TITLE = "No pudimos procesar el pago";
 
 export const PAYMENT_FAILURE = {
@@ -100,6 +144,39 @@ export function backorderNoteText(leadTimeDays: {
 }): string {
   return `Tu pedido incluye productos en importación: los pedimos al proveedor apenas confirmamos tu pago y llegan en ${leadTimeLabel(leadTimeDays)} hábiles. Te lo enviamos completo cuando todo esté disponible; puedes seguir cada paso con tu número de pedido.`;
 }
+
+/** Public order tracking (/pedidos/seguimiento). */
+export const TRACKING_COPY = {
+  title: "Seguimiento de pedido",
+  intro:
+    "Escribe tu número de pedido y el correo con el que compraste para ver en qué va tu pedido.",
+  numberLabel: "Número de pedido",
+  numberHint: "Está en tu correo de confirmación, por ejemplo MG-2026-004521.",
+  numberRequired: "Escribe tu número de pedido.",
+  numberInvalid: "Revisa el número de pedido: tiene la forma MG-2026-004521.",
+  emailLabel: "Correo electrónico",
+  emailHint: "El mismo que usaste al comprar.",
+  submit: "Consultar pedido",
+  notFound: {
+    title: "Revisa estos datos",
+    message:
+      "No encontramos un pedido con esos datos. Revisa el número y el correo con el que compraste.",
+  },
+  tooManyAttempts: {
+    title: "Demasiados intentos",
+    message:
+      "Por tu seguridad pausamos las consultas desde tu conexión. Espera unos minutos y vuelve a intentarlo.",
+  },
+  failure: {
+    title: "No pudimos consultar tu pedido",
+    message:
+      "Algo salió mal de nuestro lado. Espera un momento e inténtalo de nuevo.",
+  },
+  anotherOrder: "Consultar otro pedido",
+  demoTitle: "Datos de demostración",
+  demoIntro: "Prueba con el correo",
+  demoOrders: "y uno de estos pedidos:",
+} as const;
 
 export const ORDER_ACCESS_COPY = {
   title: "Confirma tu correo",

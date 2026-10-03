@@ -1,7 +1,14 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { findOrder } from "@/modules/orders/application/find-order";
+import { currentStatus } from "@/modules/orders/domain/order";
 import { anOrder } from "@/modules/orders/testing/order-builders";
-import { getOrderRepository, getPaymentGateway } from "./index";
+import {
+  getDemoTracking,
+  getOrderRepository,
+  getPaymentGateway,
+  getTrackingAttempts,
+} from "./index";
 
 vi.mock("server-only", () => ({}));
 
@@ -28,6 +35,39 @@ describe("orders composition root", () => {
     expect(getPaymentGateway()).toEqual(
       expect.objectContaining({ charge: expect.any(Function) }),
     );
+  });
+
+  it("seeds the demo orders for DATA_SOURCE=mock and hints them", async () => {
+    vi.stubEnv("DATA_SOURCE", "mock");
+    const order = await findOrder(
+      getOrderRepository(),
+      "MG-2026-480315",
+      "demo@migeanje.pe",
+    );
+    expect(order && currentStatus(order)).toBe("en_importacion");
+
+    expect(getDemoTracking()).toEqual({
+      email: "demo@migeanje.pe",
+      orders: [
+        { number: "MG-2026-480315", status: "en_importacion" },
+        { number: "MG-2026-275904", status: "en_camino" },
+        { number: "MG-2026-913628", status: "entregado" },
+      ],
+    });
+    vi.stubEnv("DATA_SOURCE", "medusa");
+    expect(getDemoTracking()).toBeNull();
+  });
+
+  it("keeps one process-wide limiter of failed tracking lookups", () => {
+    const attempts = getTrackingAttempts();
+    expect(getTrackingAttempts()).toBe(attempts);
+
+    for (let failure = 0; failure < 9; failure += 1) {
+      attempts.recordFailure("192.0.2.10");
+    }
+    expect(attempts.isBlocked("192.0.2.10")).toBe(false);
+    attempts.recordFailure("192.0.2.10");
+    expect(attempts.isBlocked("192.0.2.10")).toBe(true);
   });
 
   it("throws a clear error for DATA_SOURCE=medusa until F3", () => {

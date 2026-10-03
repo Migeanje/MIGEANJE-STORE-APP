@@ -21,6 +21,9 @@ describe("findOrder", () => {
     expect(
       await findOrder(repository, " mg-2026-000123 ", " Ana@Correo.PE "),
     ).toEqual(order);
+    expect(
+      await findOrder(repository, "mg 2026 000123", "ana@correo.pe"),
+    ).toEqual(order);
   });
 
   it("returns null for another email, an unknown number or junk", async () => {

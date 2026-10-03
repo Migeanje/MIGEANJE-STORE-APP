@@ -9,18 +9,26 @@ import { initialFormState } from "@/modules/checkout/ui/checkout-forms";
 import { getOrderRepository } from "@/modules/orders/infrastructure";
 import { ORDER_ACCESS_COOKIE } from "@/modules/orders/infrastructure/order-access-cookie";
 import { anOrder } from "@/modules/orders/testing/order-builders";
-import { placeOrderAction, unlockOrderAction } from "./actions";
+import {
+  placeOrderAction,
+  trackAnotherOrderAction,
+  trackOrderAction,
+  unlockOrderAction,
+} from "./actions";
+import { trackingInitialState } from "./tracking-form";
 
 vi.mock("server-only", () => ({}));
 
 const jar = new Map<string, string>();
 const setCookie = vi.fn((name: string, value: string) => jar.set(name, value));
+const requestHeaders = new Headers();
 vi.mock("next/headers", () => ({
   cookies: async () => ({
     get: (name: string) =>
       jar.has(name) ? { name, value: jar.get(name) } : undefined,
     set: setCookie,
   }),
+  headers: async () => requestHeaders,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -70,6 +78,8 @@ beforeEach(() => {
   jar.clear();
   setCookie.mockClear();
   refresh.mockClear();
+  // Each test is its own client for the process-wide attempt limiter.
+  requestHeaders.set("x-forwarded-for", crypto.randomUUID());
 });
 
 describe("placeOrderAction", () => {
@@ -232,5 +242,121 @@ describe("unlockOrderAction", () => {
       ),
     ).toEqual({ message });
     expect(jar.has(ORDER_ACCESS_COOKIE)).toBe(false);
+  });
+});
+
+describe("trackOrderAction", () => {
+  const NOT_FOUND = {
+    title: "Revisa estos datos",
+    message:
+      "No encontramos un pedido con esos datos. Revisa el número y el correo con el que compraste.",
+  };
+
+  it("remembers the order for this browser and shows its status", async () => {
+    const order = anOrder({ number: "MG-2026-555003" });
+    await getOrderRepository().save(order);
+
+    await expect(
+      trackOrderAction(
+        trackingInitialState(undefined),
+        form({ number: "mg 2026 555003", email: " ANA@correo.pe " }),
+      ),
+    ).rejects.toThrow(
+      "NEXT_REDIRECT:/pedidos/seguimiento?numero=MG-2026-555003",
+    );
+    expect(jar.get(ORDER_ACCESS_COOKIE)).toBe(
+      `${order.number}.${order.accessToken}`,
+    );
+  });
+
+  it("answers the same neutral message for another email or an unknown number", async () => {
+    const order = anOrder({ number: "MG-2026-555004" });
+    await getOrderRepository().save(order);
+
+    const wrongEmail = await trackOrderAction(
+      trackingInitialState(undefined),
+      form({ number: order.number, email: "otra@correo.pe" }),
+    );
+    const unknown = await trackOrderAction(
+      wrongEmail,
+      form({ number: "MG-2026-000000", email: "ana@correo.pe" }),
+    );
+
+    expect(wrongEmail).toEqual({
+      values: { number: order.number, email: "otra@correo.pe" },
+      errors: {},
+      formError: NOT_FOUND,
+      attempt: 1,
+    });
+    expect(unknown.formError).toEqual(NOT_FOUND);
+    expect(unknown.attempt).toBe(2);
+    expect(jar.has(ORDER_ACCESS_COOKIE)).toBe(false);
+  });
+
+  it("validates the fields before looking anything up", async () => {
+    const state = await trackOrderAction(
+      trackingInitialState(undefined),
+      form({ number: "12345", email: "" }),
+    );
+    expect(state).toEqual({
+      values: { number: "12345", email: "" },
+      errors: {
+        number: "Revisa el número de pedido: tiene la forma MG-2026-004521.",
+        email: "Escribe tu correo electrónico.",
+      },
+      formError: null,
+      attempt: 1,
+    });
+  });
+
+  it("pauses lookups from a client after 10 failures, even with the right data", async () => {
+    const order = anOrder({ number: "MG-2026-555005" });
+    await getOrderRepository().save(order);
+    let state = trackingInitialState(undefined);
+    for (let failure = 0; failure < 10; failure += 1) {
+      state = await trackOrderAction(
+        state,
+        form({ number: order.number, email: "otra@correo.pe" }),
+      );
+    }
+
+    state = await trackOrderAction(
+      state,
+      form({ number: order.number, email: "ana@correo.pe" }),
+    );
+
+    expect(state.formError).toEqual({
+      title: "Demasiados intentos",
+      message:
+        "Por tu seguridad pausamos las consultas desde tu conexión. Espera unos minutos y vuelve a intentarlo.",
+    });
+    expect(jar.has(ORDER_ACCESS_COOKIE)).toBe(false);
+
+    // Another client still gets in.
+    requestHeaders.set("x-forwarded-for", "198.51.100.77");
+    await expect(
+      trackOrderAction(
+        state,
+        form({ number: order.number, email: "ana@correo.pe" }),
+      ),
+    ).rejects.toThrow(
+      "NEXT_REDIRECT:/pedidos/seguimiento?numero=MG-2026-555005",
+    );
+  });
+});
+
+describe("trackAnotherOrderAction", () => {
+  it("forgets the order of this browser and opens an empty lookup", async () => {
+    jar.set(ORDER_ACCESS_COOKIE, `MG-2026-555006.${crypto.randomUUID()}`);
+
+    await expect(trackAnotherOrderAction()).rejects.toThrow(
+      "NEXT_REDIRECT:/pedidos/seguimiento",
+    );
+    expect(setCookie).toHaveBeenCalledWith(
+      ORDER_ACCESS_COOKIE,
+      "",
+      expect.objectContaining({ maxAge: 0, httpOnly: true, path: "/" }),
+    );
+    expect(jar.get(ORDER_ACCESS_COOKIE)).toBe("");
   });
 });

@@ -35,9 +35,20 @@ export async function readOrderAccess(): Promise<OrderAccess | null> {
 }
 
 /**
- * Lets this browser open the confirmation of one order (only from a server
- * action). The value is the order number plus its secret access token, so
- * knowing a number is not enough.
+ * Forgets the order this browser may open (only from a server action), e.g.
+ * "Consultar otro pedido" on the tracking page.
+ */
+export async function clearOrderAccess(): Promise<void> {
+  (await cookies()).set(ORDER_ACCESS_COOKIE, "", {
+    ...orderAccessCookieOptions(),
+    maxAge: 0,
+  });
+}
+
+/**
+ * Lets this browser open the confirmation and the tracking of one order
+ * (only from a server action). The value is the order number plus its
+ * secret access token, so knowing a number is not enough.
  */
 export async function writeOrderAccess({
   number,
