@@ -1,11 +1,12 @@
-// Who is asking, for the order lookup attempt limiter. Server-only: it reads
-// the request headers and writes a cookie (only from a server action).
+// Who is asking, for the attempt limiters (order lookups, account logins).
+// Server-only: it reads the request headers and writes a cookie (only from a
+// server action).
 import "server-only";
 import { cookies, headers } from "next/headers";
 import { network } from "@/shared/config/network";
 import { trustedForwardedAddress } from "@/shared/lib/client-address";
 
-/** Anonymous id of this browser, for the attempt limiter only. */
+/** Anonymous id of this browser, for the attempt limiters only. */
 export const CLIENT_ID_COOKIE = "mg_client";
 
 const ONE_DAY_IN_SECONDS = 24 * 60 * 60;
@@ -32,10 +33,10 @@ export type IdentifyClientOptions = {
 };
 
 /**
- * The keys the attempt limiter counts for this request (only from a server
+ * The keys an attempt limiter counts for this request (only from a server
  * action, as it may set a cookie):
  * - `browser:<id>`: a random id the server issues in the httpOnly
- *   `mg_client` cookie on the first lookup (a missing or malformed value is
+ *   `mg_client` cookie on the first attempt (a missing or malformed value is
  *   replaced, so a client cannot pick someone else's key);
  * - `address:<ip>`: only behind trusted proxies (`network.trustedProxyHops`),
  *   the address the closest of them appended to `x-forwarded-for`.

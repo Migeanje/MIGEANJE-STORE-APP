@@ -71,7 +71,8 @@ const DATE_FORMAT = new Intl.DateTimeFormat("es-PE", {
   timeZone: "UTC",
 });
 
-function placedOn(order: Order): TrackedOrder["placedOn"] {
+/** The Lima date an order was placed: "2 de octubre de 2026". */
+export function orderPlacedOn(order: Order): TrackedOrder["placedOn"] {
   const date = limaDate(new Date(order.placedAt));
   return {
     label: DATE_FORMAT.format(new Date(`${date}T00:00:00Z`)),
@@ -146,7 +147,7 @@ export function orderTrackingView(order: Order): TrackedOrder {
   return {
     number: order.number,
     status: ORDER_STATUS_LABELS[current],
-    placedOn: placedOn(order),
+    placedOn: orderPlacedOn(order),
     steps: steps(order, current),
     updatesNote: updatesNote(maskEmail(customer.email)),
     delivery: delivery(order, current),

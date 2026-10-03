@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
+import { aContact } from "@/modules/checkout/testing/checkout-builders";
 import { anOrder } from "@/modules/orders/testing/order-builders";
 import { createInMemoryOrderRepository } from "./in-memory-order-repository";
 
@@ -86,5 +87,36 @@ describe("createInMemoryOrderRepository", () => {
     await orders.save(order);
     await orders.save(order);
     expect(await orders.findByNumber(order.number)).toEqual(order);
+  });
+
+  it("lists the orders of a buyer's email, newest first, as copies", async () => {
+    const orders = createInMemoryOrderRepository();
+    const older = anOrder({
+      number: "MG-2026-000001",
+      placedAt: new Date("2026-09-01T15:00:00Z"),
+    });
+    const newer = anOrder({
+      number: "MG-2026-000002",
+      placedAt: new Date("2026-10-01T15:00:00Z"),
+    });
+    const someoneElse = anOrder({
+      number: "MG-2026-000003",
+      contact: {
+        ...aContact(),
+        customer: { ...aContact().customer, email: "otra@correo.pe" },
+      },
+    });
+    await orders.save(older);
+    await orders.save(someoneElse);
+    await orders.save(newer);
+
+    const found = await orders.findByEmail("ana@correo.pe");
+    expect(found.map(({ number }) => number)).toEqual([
+      "MG-2026-000002",
+      "MG-2026-000001",
+    ]);
+    expect(found[0]).toEqual(newer);
+    expect(found[0]).not.toBe(newer);
+    expect(await orders.findByEmail("nadie@correo.pe")).toEqual([]);
   });
 });

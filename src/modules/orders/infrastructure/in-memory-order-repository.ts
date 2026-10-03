@@ -56,5 +56,11 @@ export function createInMemoryOrderRepository({
       const order = store.get(number);
       return order ? structuredClone(order) : null;
     },
+    async findByEmail(email) {
+      return [...store.values()]
+        .filter((order) => order.customer.email === email)
+        .sort((a, b) => b.placedAt.localeCompare(a.placedAt))
+        .map((order) => structuredClone(order));
+    },
   };
 }

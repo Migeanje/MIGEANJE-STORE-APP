@@ -30,12 +30,12 @@ import {
   getPaymentGateway,
   getReconciliationLog,
 } from "@/modules/orders/infrastructure";
-import { identifyClient } from "@/modules/orders/infrastructure/client-key";
 import {
   clearOrderAccess,
   writeOrderAccess,
 } from "@/modules/orders/infrastructure/order-access-cookie";
 import { features } from "@/shared/config/features";
+import { identifyClient } from "@/shared/lib/client-key";
 import {
   cartChangedError,
   declinedError,

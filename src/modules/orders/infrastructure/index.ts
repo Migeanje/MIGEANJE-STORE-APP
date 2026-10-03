@@ -85,7 +85,7 @@ type LookupAttemptsGlobal = typeof globalThis & {
 /**
  * Failed order lookups by number and email per client key (10 per 15
  * minutes), shared by the public tracking and the confirmation unlock, for
- * every data source. Keys come from `identifyClient` (`client-key.ts`). In
+ * every data source. Keys come from `identifyClient` (`shared/lib/client-key.ts`). In
  * this process's memory: a best-effort guard; real rate limiting belongs to
  * the edge or the backend.
  */

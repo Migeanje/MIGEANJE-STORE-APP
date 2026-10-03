@@ -57,6 +57,11 @@ export function fakeOrders(initial: Order[] = []) {
     async findByNumber(number) {
       return store.get(number) ?? null;
     },
+    async findByEmail(email) {
+      return [...store.values()].filter(
+        (order) => order.customer.email === email,
+      );
+    },
   };
   return { repository, store };
 }

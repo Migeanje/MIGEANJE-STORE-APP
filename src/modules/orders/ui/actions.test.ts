@@ -14,9 +14,9 @@ import {
   getOrderRepository,
   getReconciliationLog,
 } from "@/modules/orders/infrastructure";
-import { CLIENT_ID_COOKIE } from "@/modules/orders/infrastructure/client-key";
 import { ORDER_ACCESS_COOKIE } from "@/modules/orders/infrastructure/order-access-cookie";
 import { anOrder } from "@/modules/orders/testing/order-builders";
+import { CLIENT_ID_COOKIE } from "@/shared/lib/client-key";
 import {
   placeOrderAction,
   trackAnotherOrderAction,

@@ -16,6 +16,11 @@ export interface OrderRepository {
   save(order: Order): Promise<void>;
   /** The order with this exact number, or null. */
   findByNumber(number: string): Promise<Order | null>;
+  /**
+   * The orders whose buyer used this exact (normalized) email, in any order
+   * (the account's "Mis pedidos").
+   */
+  findByEmail(email: string): Promise<Order[]>;
 }
 
 /** What to charge, in céntimos. The card is never stored by anyone. */
