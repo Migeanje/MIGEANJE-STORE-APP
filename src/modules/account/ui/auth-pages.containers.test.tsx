@@ -120,6 +120,16 @@ describe("LogInPageContainer", () => {
       LogInPageContainer({ searchParams: { volver: "/cuenta/pedidos" } }),
     ).rejects.toThrow("NEXT_REDIRECT:/cuenta/pedidos");
   });
+
+  it.each(["/.//evil.example", "/a/..//evil.example", "/%2e//evil.example"])(
+    "keeps a signed-in customer on the site for %s",
+    async (volver) => {
+      session.account = anAccount();
+      await expect(
+        LogInPageContainer({ searchParams: { volver } }),
+      ).rejects.toThrow(/^NEXT_REDIRECT:\/cuenta$/);
+    },
+  );
 });
 
 describe("RegisterPageContainer", () => {

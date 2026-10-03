@@ -10,6 +10,12 @@ export const ACCOUNT_PATHS = {
   favorites: "/cuenta/favoritos",
 } as const;
 
+/**
+ * Public order tracking (number + email), a page of the orders module; the
+ * account never imports orders (a test keeps both paths equal).
+ */
+export const TRACK_ORDER_PATH = "/pedidos/seguimiento";
+
 /** Where to go after signing in: `?volver=/productos/...`. */
 export const RETURN_PARAM = "volver";
 /** A confirmation to show after a change: `?aviso=perfil-guardado`. */
@@ -32,12 +38,28 @@ function hasControlCharacter(value: string): boolean {
   return false;
 }
 
+/** `%5C` (backslash) anywhere; `%2F` (slash) in the path. */
+const ENCODED_BACKSLASH = /%5c/i;
+const ENCODED_SLASH = /%2f/i;
+
+/** `value` resolved on BASE (normalized), or null when it leaves the site. */
+function resolveOnSite(value: string): URL | null {
+  try {
+    const url = new URL(value, BASE);
+    return url.origin === BASE ? url : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * A `?volver=` value, if it is a path of this site; `fallback` otherwise.
  * Refuses anything that could leave the site (absolute and
  * protocol-relative URLs, backslash tricks, control characters that URL
  * parsers drop) and the sign-in pages themselves (no loops). The path comes
- * back normalized (`/a/../b` is `/b`).
+ * back normalized (`/a/../b` is `/b`), and the checks look at that
+ * normalized path: `/.//evil.example` normalizes to `//evil.example`, which
+ * a browser reads as another site.
  */
 export function safeReturnPath(
   value: unknown,
@@ -53,16 +75,22 @@ export function safeReturnPath(
   ) {
     return fallback;
   }
-  let url: URL;
-  try {
-    url = new URL(value, BASE);
-  } catch {
+  const url = resolveOnSite(value);
+  if (!url) return fallback;
+  const { pathname } = url;
+  const path = `${pathname}${url.search}${url.hash}`;
+  if (
+    pathname.startsWith("//") ||
+    pathname.includes("\\") ||
+    ENCODED_SLASH.test(pathname) ||
+    ENCODED_BACKSLASH.test(path) ||
+    AUTH_PATHS.includes(pathname) ||
+    // Followed as given (a Location header), it must land on itself.
+    resolveOnSite(path)?.href !== url.href
+  ) {
     return fallback;
   }
-  if (url.origin !== BASE || AUTH_PATHS.includes(url.pathname)) {
-    return fallback;
-  }
-  return `${url.pathname}${url.search}${url.hash}`;
+  return path;
 }
 
 function withReturn(path: string, returnTo: string | null | undefined) {
