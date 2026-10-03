@@ -42,10 +42,12 @@ The design system (`f1-design-system`) is done and on `main`. F1 objectives 3 an
 | M5 | Cart module (domain, mock adapter, server actions, cookie) + cart drawer | Delegated (writer) | 2+ non-trivial files | Done — `07924cb`, `90f6d16`, `fb508d9`, `6376e3f` (branch `feat/f1-cart`); high risk → independent verifier |
 | M5.1 | Restore cached catalog pages (Engram #15 3.1): reading the cart cookie in the root layout made every route dynamic; fix via `cacheComponents` + Suspense around the cart slot, or a client-fetched cart count | Delegated (writer) | `next.config.ts` + layout | Pending |
 | M6 | Checkout 3 steps (contact + shipping with ubigeo, receipt boleta / factura flag off, simulated Culqi payment) + order confirmation | Delegated (writer) | 2+ non-trivial files | Done — `6a922df`, `6cf956f`, `d1c5431`, `9202edc`, `3a5af7c` (branch `feat/f1-checkout`); payments/PII → independent verifier |
-| M6.1 | Payment guard from M6 verification: expected total posted by the pay form and `cart_changed` refusal; validate/build order and reserve its number before charging | Delegated (writer) | checkout + orders | In progress |
+| M6.1 | Payment guard from M6 verification: expected total posted by the pay form and `cart_changed` refusal; validate/build order and reserve its number before charging | Delegated (writer) | checkout + orders | Done — `7d5c4e8` (branch `feat/f1-payment-guard`); verifier PASS |
+| M7.1 | Hardening from M7/M6.1 verification: throttle key not trusting spoofable `x-forwarded-for`; throttle `unlockOrderAction`; block re-payment after `order_persist_failed_after_charge` (pending reconciliation notice on `/checkout/pago`) | Delegated (writer) | orders + checkout | In progress |
 | M7 | Orders: public order status ("En importación") | Delegated (writer) | 2+ non-trivial files | Done — `465ed20`, `6b411ff`, `1709039` (branch `feat/f1-orders`) |
-| M8 | Libro de Reclamaciones form + constancia | Delegated (writer) | 2+ non-trivial files | Pending |
-| M9 | Account (login/register/reset, profile, addresses, my orders, favorites) + trust & legal pages ("Cómo elegimos", terms, privacy, shipping & returns, warranties) | Delegated (writer) | 2+ non-trivial files | Pending |
+| M8 | Libro de Reclamaciones form + constancia | Delegated (writer) | 2+ non-trivial files | Done — `9dabc9f`, `2abe1f9`, `345808b` (branch `feat/f1-complaints`) |
+| M9a | Trust & legal pages: "Cómo elegimos", términos, privacidad, envíos y devoluciones, garantías (DRAFT, research-backed) | Delegated (writer) | content + templates | In progress |
+| M9b | Account mock: login/register/reset, profile, addresses, my orders, favorites | Delegated (writer) | 2+ non-trivial files | Pending |
 
 ## Acceptance criteria
 
@@ -117,6 +119,20 @@ Decisions made without the owner during the overnight run, within approved desig
 - M7: Public page masks PII (first name + initial, street prefix, no DNI/RUC, `a•••@dominio`); number + email still open the full M6 confirmation, so masking is not stronger protection. Page `noindex`.
 - M7: Demo orders (mock only) for `demo@migeanje.pe`: `MG-2026-480315` (en importación), `MG-2026-275904` (en camino), `MG-2026-913628` (entregado).
 
+- M6.1: Quote = expected total + 32-bit FNV-1a cart fingerprint (compare only; server charges its own total). If clearing the cart fails after saving the order, the order still counts. Reconciliation log exists only for mock (lost on restart; the structured log event is the lasting record).
+- M8: Sheet number follows the official form `000000001-2026` (yearly correlative). Required fields limited to those whose absence voids a claim (name, document, address, email, detail, type, declaration). Added "how to receive the answer" (email or letter). Minors: guardian name required, no guardian document (data minimization). Truthfulness checkbox required (lawyer to confirm). DNI/CE only (as the official form). Order number not validated against real orders (no existence leak). Print theme added to `tokens.css` via `var()` aliases (screen tokens unchanged).
+
+## M8 evidence
+
+- Legal sources: Ley 29571 arts. 150–151 (amended by Ley 32495), Ley 31435 (15 business days, non-extendable), D.S. 101-2022-PCM (Anexo I, arts. 4-B, 5, 6, 6-B, 12). Engram `legal/libro-de-reclamaciones`.
+- Writer verification: lint, typecheck, test (1,808 ×2), build, build-storybook ok. Headless axe: 0 violations (empty, error, filed, constancia incl. print emulation, no-JS) at 375/1280px.
+- Parent spot check: `pnpm test` 1,808 passed; `pnpm lint` ok (619 files).
+- Before launch: RUC, razón social and address "Por definir"; holidays not counted (due date may show early, never late); in-memory book violates 2-year retention (real storage in F3); no filing rate limit; RM 244-2026-PCM draft status unconfirmed.
+
+## M6.1 + M7 verification
+
+- Independent verifier (worktree at `7d5c4e8`): **PASS**. MEDIUM → M7.1: spoofable `x-forwarded-for` throttle key (bypass + lockout, reproduced); `unlockOrderAction` unthrottled; re-payment possible after `order_persist_failed_after_charge`.
+
 ## M7 evidence
 
 - RED → GREEN per item. Writer verification: lint (552 files), typecheck, test (1,632 ×2), build, build-storybook ok. Headless: 19 axe checks with 0 violations, 81/81 flow checks (demo orders, real in-stock and backorder orders, no-JS lookup, throttle).
@@ -158,4 +174,4 @@ Decisions made without the owner during the overnight run, within approved desig
 
 ## Next step
 
-M7 (public order status) on `feat/f1-orders`, in parallel with the M6 independent verifier (worktree at `3a5af7c`).
+M7.1 + M9a on `feat/f1-trust-pages`; then M9b + M5.1.
