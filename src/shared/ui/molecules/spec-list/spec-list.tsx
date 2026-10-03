@@ -44,9 +44,20 @@ export type SpecListProps = Omit<ComponentProps<"dl">, "children"> & {
   variant?: SpecListVariant;
 };
 
+/** Labels key the rows: a repeated label is a data bug, so fail loudly. */
+function assertUniqueLabels(specs: readonly Spec[]): void {
+  const seen = new Set<string>();
+  for (const { label } of specs) {
+    if (seen.has(label)) {
+      throw new Error(`SpecList labels must be unique, got "${label}" twice`);
+    }
+    seen.add(label);
+  }
+}
+
 /**
  * Product specs as a `<dl>`: muted labels, values (and units) in Geist Mono.
- * Renders nothing without specs.
+ * Renders nothing without specs. Throws an Error when two specs share a label.
  */
 export function SpecList({
   specs,
@@ -55,6 +66,7 @@ export function SpecList({
   ...props
 }: SpecListProps) {
   if (specs.length === 0) return null;
+  assertUniqueLabels(specs);
 
   const termClassName = textVariants({
     size: variant === "compact" ? "caption" : "body-sm",

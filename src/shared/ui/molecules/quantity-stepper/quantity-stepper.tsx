@@ -5,6 +5,7 @@ import {
   type ChangeEvent,
   type ComponentProps,
   type KeyboardEvent,
+  useEffect,
   useRef,
   useState,
 } from "react";
@@ -76,8 +77,9 @@ export type QuantityStepperProps = Omit<
  * Throws a RangeError for invalid bounds and for a `value` or `defaultValue`
  * that is not an integer within [min, max]: those are programming errors (the
  * cart must reconcile quantities with the stock first). What the user types is
- * input, not an error, so it is clamped instead. If `max` later drops below the
- * uncontrolled value, the shown value is clamped too.
+ * input, not an error, so it is clamped instead. If new bounds (e.g. a lower
+ * `max`) leave the uncontrolled value out of range, it is clamped, stored and
+ * reported once through `onValueChange`.
  */
 export function QuantityStepper({
   label,
@@ -115,9 +117,21 @@ export function QuantityStepper({
   });
   // Text being typed; null when the field shows the committed value.
   const [draft, setDraft] = useState<string | null>(null);
+  // Clamped while rendering so a bounds change never shows an out-of-range value.
   const current = isControlled ? value : clamp(uncontrolledValue);
   const atMin = current <= min;
   const atMax = current >= upper;
+
+  // When new bounds clamp the uncontrolled value, store the clamped value (so
+  // raising max later does not jump back) and report it once. Reporting needs
+  // an effect: calling the parent's onValueChange while rendering is not allowed.
+  useEffect(() => {
+    if (isControlled) return;
+    const clamped = Math.min(Math.max(uncontrolledValue, min), upper);
+    if (clamped === uncontrolledValue) return;
+    setUncontrolledValue(clamped);
+    onValueChange?.(clamped);
+  }, [isControlled, uncontrolledValue, min, upper, onValueChange]);
 
   function commit(next: number): number {
     setDraft(null);

@@ -231,6 +231,31 @@ describe("QuantityStepper", () => {
     expect(input).toHaveValue("7");
   });
 
+  it("commits a pending draft before stepping with the buttons", async () => {
+    const user = userEvent.setup();
+    const onValueChange = vi.fn();
+    render(
+      <QuantityStepper
+        label="Cantidad"
+        max={10}
+        onValueChange={onValueChange}
+      />,
+    );
+    const { input, decrement, increment } = getParts();
+
+    // Clicking a button blurs the field first, which commits the draft.
+    await user.clear(input);
+    await user.type(input, "8");
+    await user.click(increment);
+    expect(input).toHaveValue("9");
+
+    await user.clear(input);
+    await user.type(input, "5");
+    await user.click(decrement);
+    expect(input).toHaveValue("4");
+    expect(onValueChange.mock.calls).toEqual([[8], [9], [5], [4]]);
+  });
+
   it("follows the value prop when controlled", async () => {
     const user = userEvent.setup();
     const onValueChange = vi.fn();
@@ -352,6 +377,72 @@ describe("QuantityStepper", () => {
     expect(input).toHaveValue("2");
     expect(input).toHaveAttribute("aria-valuenow", "2");
     expect(increment).toBeDisabled();
+  });
+
+  it("stores and reports the clamped value when a lowered max clamps it", () => {
+    const onValueChange = vi.fn();
+    const { rerender } = render(
+      <QuantityStepper
+        label="Cantidad"
+        defaultValue={4}
+        max={5}
+        onValueChange={onValueChange}
+      />,
+    );
+    const { input } = getParts();
+
+    rerender(
+      <QuantityStepper
+        label="Cantidad"
+        defaultValue={4}
+        max={2}
+        onValueChange={onValueChange}
+      />,
+    );
+    expect(input).toHaveValue("2");
+    expect(onValueChange.mock.calls).toEqual([[2]]);
+
+    // Stock comes back: the quantity stays at 2 instead of jumping back to 4.
+    rerender(
+      <QuantityStepper
+        label="Cantidad"
+        defaultValue={4}
+        max={5}
+        onValueChange={onValueChange}
+      />,
+    );
+    expect(input).toHaveValue("2");
+    expect(onValueChange.mock.calls).toEqual([[2]]);
+  });
+
+  it("stores and reports the clamped value when a raised min clamps it", () => {
+    const onValueChange = vi.fn();
+    const { rerender } = render(
+      <QuantityStepper
+        label="Cantidad"
+        min={1}
+        onValueChange={onValueChange}
+      />,
+    );
+    const { input } = getParts();
+
+    rerender(
+      <QuantityStepper
+        label="Cantidad"
+        min={3}
+        onValueChange={onValueChange}
+      />,
+    );
+    rerender(
+      <QuantityStepper
+        label="Cantidad"
+        min={1}
+        onValueChange={onValueChange}
+      />,
+    );
+
+    expect(input).toHaveValue("3");
+    expect(onValueChange.mock.calls).toEqual([[3]]);
   });
 
   it("has no axe violations (default, at the max, disabled)", async () => {
