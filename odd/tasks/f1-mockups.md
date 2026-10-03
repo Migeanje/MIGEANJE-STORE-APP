@@ -34,8 +34,8 @@ The design system (`f1-design-system`) is done and on `main`. F1 objectives 3 an
 
 | ID | Task | Route | Trigger evidence | Status |
 |---|---|---|---|---|
-| M0 | F1 follow-ups: QuantityStepper uncontrolled max-lowering sync + draft/click test, FormField empty `controlId`, SpecList duplicate labels, `.env.example` + gitignore exception | Delegated (writer) | 3+ files | Pending |
-| M1 | Catalog module: domain (Product, Variant, Category spec schema, Brand, Availability, ExpertReview) + Zod, `CatalogRepository` port, use cases (list/filter by category, get by slug, compare, search), mock adapter with the 19 fixtures (verify conflicting specs), `DATA_SOURCE` composition root | Delegated (writer) | 2+ non-trivial files | Pending |
+| M0 | F1 follow-ups: QuantityStepper uncontrolled max-lowering sync + draft/click test, FormField empty `controlId`, SpecList duplicate labels, `.env.example` + gitignore exception | Delegated (writer) | 3+ files | Done — in owner commit `4124624` (`.env.example` pending: owner permissions deny agent writes to `.env*`) |
+| M1 | Catalog module: domain (Product, Variant, Category spec schema, Brand, Availability, ExpertReview) + Zod, `CatalogRepository` port, use cases (list/filter by category, get by slug, compare, search), mock adapter with the 19 fixtures (verify conflicting specs), `DATA_SOURCE` composition root | Delegated (writer) | 2+ non-trivial files | Done — `4124624` (partial, owner) + `de66e33` |
 | M2 | App shell: layout, header (nav, SearchBar, cart button), footer (legal links, Libro de Reclamaciones), motion providers (Lenis/GSAP on discovery only), 404/error | Delegated (writer) | 2+ non-trivial files | Pending |
 | M3 | Discovery: Home, Category (spec filters), Brand, Search results | Delegated (writer) | 2+ non-trivial files | Pending |
 | M4 | Product page (gallery, variants, specs, availability, expert review rubric, compare) + Comparator | Delegated (writer) | 2+ non-trivial files | Pending |
@@ -67,6 +67,12 @@ The design system (`f1-design-system`) is done and on `main`. F1 objectives 3 an
 
 - 2026-10-02: Product list researched and approved (19 products). Branch `feat/f1-catalog-domain` created from `main` (`4d61dd9`). Feature document created.
 
+- 2026-10-02: M0 + M1 done. The owner committed and pushed partial work mid-writer as `4124624` (message from another project; not rewritten). Completion commit `de66e33`.
+  - M0: QuantityStepper stores and notifies clamped uncontrolled values; FormField empty `controlId` falls back; SpecList throws on duplicate labels; `.gitignore` `!.env.example`. `.env.example` itself not created (permission deny on `.env*`); content: `DATA_SOURCE=mock`.
+  - M1: Zod 4.6.5 domain (99 tests), use cases (21), mock adapter validating 19 fixtures (13), composition root with `server-only` (4). Apple split into `laptops`/`tablets`/`audio` (9 categories). 8 expert reviews incl. Revodok Pro 210 macOS mirroring. Spec checks: Prime 160W = 140 W single port; MagFlow 55960 = 25 W (iPhone 16/17); Nano 45W = A121D. Estimated prices marked `// price: estimated`.
+  - Writer verification: install, lint, typecheck, test (569), build, build-storybook ok. Parent spot check: `pnpm test` 569 passed; `pnpm lint` ok.
+  - Notes for later: M4 `next/image` with SVG placeholders needs `unoptimized`/`dangerouslyAllowSVG`; M5 may move `DATA_SOURCE` parsing to `src/shared/lib`.
+
 ## Next step
 
-M0 + M1 (one writer, separate work-unit commits).
+Native review of `4d61dd9..HEAD`, then M2 (app shell) on a new branch from `main` after the owner merges this slice (or stacked on this branch if not merged yet).
