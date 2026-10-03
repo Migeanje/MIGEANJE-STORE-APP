@@ -1,2 +1,4 @@
 @import "tailwindcss";
+/* Lenis recommended CSS; it only applies while Lenis runs (discovery pages). */
+@import "lenis/dist/lenis.css";
 @import "../shared/ui/tokens/tokens.css";

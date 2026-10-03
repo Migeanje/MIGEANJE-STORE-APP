@@ -35,8 +35,8 @@ CI (`.github/workflows/ci.yml`) runs install (frozen lockfile), lint, typecheck,
 - Vitest + Testing Library (jsdom). Tests live next to the code as `*.test.ts(x)`.
 - Fonts: Geist Sans + Geist Mono from the self-hosted `geist` package (`next/font/local`, no network at build) in `src/shared/ui/tokens/fonts.ts`.
 - Storybook (`@storybook/nextjs-vite`) with the a11y and docs addons; config in `.storybook/`.
-- Components: `class-variance-authority` variants, `cn()` (clsx + tailwind-merge), `lucide-react` icons, `radix-ui` (Slot now; shadcn primitives later), `axe-core` in tests.
-- Planned in later tasks: GSAP/Lenis.
+- Components: `class-variance-authority` variants, `cn()` (clsx + tailwind-merge), `lucide-react` icons, `radix-ui` (Slot and shadcn primitives), `axe-core` in tests.
+- Motion: `gsap` (ScrollTrigger) + `lenis`, only on discovery pages (see App shell).
 
 ## Architecture
 
@@ -66,6 +66,16 @@ src/
 - Money is integer céntimos everywhere (`moneySchema` = the `formatPEN` rules); product price and availability are derived from the variants (`productPrice`, `productAvailability`), never stored.
 - Domain errors fail loudly with a clear message; user input (URL filters, pages, search text) is sanitized or clamped instead.
 - Domain and use-case tests run in Node: start them with `// @vitest-environment node`.
+- Adapters return shared, deeply frozen data (`deepFreeze` in `infrastructure/`): mutating a returned entity throws a TypeError. Copy before changing anything.
+
+## App shell
+
+- Root layout (`src/app/layout.tsx`): skip link "Saltar al contenido" -> `<main id="contenido" tabIndex={-1}>`, between `SiteHeaderContainer` and `SiteFooterContainer` (`src/modules/catalog/ui/`, they load the categories and render the shared organisms).
+- Route groups: `(discovery)` (home, category, product, brand, search) wraps pages in `MotionProvider` (`src/shared/ui/providers`: Lenis on the window, driven by GSAP's ticker and synced with ScrollTrigger). `(transactional)` (cart, checkout, account, orders, complaints, legal) keeps native scroll. New pages go in the matching group.
+- Lenis honors `prefers-reduced-motion` by itself; GSAP animations must use `gsap.matchMedia()` and stay off under reduced motion. Lenis anchors stay off so the skip link moves focus. Scrollable overlays carry `data-lenis-prevent` (the Sheet primitive does).
+- `not-found.tsx` (404 with category shortcuts), `error.tsx` (calls `retry`, stable since Next 16.3) and `global-error.tsx` (own `<html>`, imports `globals.css` and the fonts).
+- `SiteHeader` reads the router (`usePathname` for `aria-current`, `useRouter` for search). Its search is a native GET form to `/buscar` (works before hydration) that navigates on the client once hydrated. Tests mock `next/navigation`; stories set `parameters.nextjs.appDirectory` and `navigation.pathname`.
+- Async Server Component containers are tested with `render(await Container())`; a page that embeds one mocks the container module.
 
 ## Design tokens
 
@@ -84,6 +94,8 @@ src/
 
 - Atoms are our own components: `src/shared/ui/atoms/<name>/` holds `<name>.tsx`, `<name>.test.tsx`, `<name>.stories.tsx` and `index.ts`. Story titles: `Atoms/<Name>` (then `Molecules/`, `Organisms/`).
 - shadcn/ui only for Radix-backed primitives where behavior and a11y matter (dialog/sheet, select, checkbox, radio group, tooltip, accordion, tabs...), never for trivial atoms. `components.json` sends them to `src/shared/ui/primitives` (style `radix-nova`, `radix-ui` package); restyle them with our tokens. Never run a shadcn command that rewrites `globals.css` or `tokens.css` (`init`, theme or preset changes).
+- Primitives are flat files as shadcn writes them (`primitives/sheet.tsx`, plus `sheet.test.tsx` and a `Primitives/Sheet` story). There is no `tw-animate-css`: enter transitions use Tailwind's `starting:` variant (`@starting-style`); exits are instant.
+- Organisms (`src/shared/ui/organisms/<name>/`, same four files) take presentational props and never import modules; module containers feed them.
 - Merge classes with `cn()` from `@/shared/lib/cn`. When you add a custom utility to `tokens.css` (`--text-*`, `--radius-*`, `--shadow-*`...), register it in `cn.ts` too, or tailwind-merge puts it in the wrong group (e.g. `text-display-xl` read as a color drops `text-foreground`).
 - Icons from `lucide-react` are decorative (`aria-hidden`); the text carries the meaning.
 - Every component needs behavior tests (Testing Library roles and names), an axe check with `expectNoAxeViolations` from `@/test/a11y` for every variant and state, and a story. jsdom cannot compute contrast, so axe's `color-contrast` rule is off there; `tokens.test.ts` and the Storybook a11y addon cover it.
